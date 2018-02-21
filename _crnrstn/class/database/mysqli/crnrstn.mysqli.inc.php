@@ -61,9 +61,13 @@ class crnrstn_mysqli_conn {
 		// ESTABLISH AND RETURN MYSQLI CONNECTION
 		try{
 			if(self::$db_port!=''){
+				// CAREFUL: UNCOMMENTING THE FOLLOWING LINE OF CODE WILL EXPOSE SESITIVE DATABASE INFORMATION 
+				// THROUGH THE SERVER LOGS.
 				#error_log( "new mysqli(".self::$db_host.", ".self::$db_un.", ".self::$db_pwd.", ".self::$db_db.", ".self::$db_port.")");
 				$mysqli = new mysqli(self::$db_host, self::$db_un, self::$db_pwd, self::$db_db, self::$db_port);
 			}else{
+				// CAREFUL: UNCOMMENTING THE FOLLOWING LINE OF CODE WILL EXPOSE SESITIVE DATABASE INFORMATION 
+				// THROUGH THE SERVER LOGS.
 				#error_log( "new mysqli(".self::$db_host.", ".self::$db_un.", ".self::$db_pwd.", ".self::$db_db.")");			
 				$mysqli = new mysqli(self::$db_host, self::$db_un, self::$db_pwd, self::$db_db);
 			}
