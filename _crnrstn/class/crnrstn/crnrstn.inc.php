@@ -19,7 +19,7 @@
 #  GNU General Public License for more details.
 
 #  You should have received a copy of the GNU General Public License
-#  along with this program. Thandle_env_ARRAYhis license can also be downloaded from
+#  along with this program. This license can also be downloaded from
 #  my web site at (http://crnrstn.jony5.com/license.txt).  
 #  If not, see <http://www.gnu.org/licenses/>
 
