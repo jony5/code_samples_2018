@@ -38,6 +38,9 @@ class crnrstn_mysqli_conn {
 	private static $oLogger;
 
 	public function __construct($host, $un, $pwd, $db, $port=NULL) {
+		//
+		// CAREFUL: UNCOMMENTING THE FOLLOWING LINE OF CODE WILL EXPOSE SESITIVE DATABASE INFORMATION 
+		// THROUGH THE SERVER LOGS.
 		#error_log("crnrstn.mysqli.inc.php (41) DB CONN _construct. host: ".$host.", un: ".$un.", pwd: ".$pwd.", db: ".$db);
 		// 
 		// INSTANTIATE LOGGER
