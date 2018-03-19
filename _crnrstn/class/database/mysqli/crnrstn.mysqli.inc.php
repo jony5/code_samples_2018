@@ -2,16 +2,17 @@
 /*
 // J5
 // Code is Poetry */
-#  CRNRSTN Suite :: An Open Source PHP Class Library to configure an applications' code-base to run in multiple hosting environments.
+#  CRNRSTN Suite :: An Open Source PHP Class Library to facilitate the execution of an application's code-base across multiple hosting environments.
 #  Copyright (C) 2018 Jonathan 'J5' Harris.
 #  VERSION :: 1.0.0
 #  AUTHOR :: J5
 #  URI :: http://crnrstn.jony5.com/
-#  OVERVIEW :: Once CRNRSTN has been configured for your different hosting environments, seamlessly release a web application from
-#              one environment to the next without having to change your code-base to account for environmentally specific parameters.
-#  LICENSE :: This program is free software: you can redistribute it and/or modify
-#             it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of 
-#             the License, or (at your option) any later version.
+#  OVERVIEW :: Once CRNRSTN has been configured for your different hosting environments from localhost through to production, seamlessly 
+#		   	   release a web application from one environment to the next without having to change your code-base to account for 
+#			   environmentally specific parameters. Configure the profiles of each running environment to account for all of your 
+#			   application's environmentally specific parameters; and do this all from one place with the CRNRSTN Suite ::
+#  LICENSE :: This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public 
+#			  License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -19,7 +20,7 @@
 #  GNU General Public License for more details.
 
 #  You should have received a copy of the GNU General Public License
-#  along with this program. This license can also be downloaded from
+#  along with this program. Thandle_env_ARRAYhis license can also be downloaded from
 #  my web site at (http://crnrstn.jony5.com/license.txt).  
 #  If not, see <http://www.gnu.org/licenses/>
 
@@ -38,9 +39,6 @@ class crnrstn_mysqli_conn {
 	private static $oLogger;
 
 	public function __construct($host, $un, $pwd, $db, $port=NULL) {
-		//
-		// CAREFUL: UNCOMMENTING THE FOLLOWING LINE OF CODE WILL EXPOSE SESITIVE DATABASE INFORMATION 
-		// THROUGH THE SERVER LOGS.
 		#error_log("crnrstn.mysqli.inc.php (41) DB CONN _construct. host: ".$host.", un: ".$un.", pwd: ".$pwd.", db: ".$db);
 		// 
 		// INSTANTIATE LOGGER
@@ -61,14 +59,10 @@ class crnrstn_mysqli_conn {
 		// ESTABLISH AND RETURN MYSQLI CONNECTION
 		try{
 			if(self::$db_port!=''){
-				// CAREFUL: UNCOMMENTING THE FOLLOWING LINE OF CODE WILL EXPOSE SESITIVE DATABASE INFORMATION 
-				// THROUGH THE SERVER LOGS.
-				#error_log( "new mysqli(".self::$db_host.", ".self::$db_un.", ".self::$db_pwd.", ".self::$db_db.", ".self::$db_port.")");
+				//print_r( "new mysqli(".self::$db_host.", ".self::$db_un.", ".self::$db_pwd.", ".self::$db_db.", ".self::$db_port.")");
 				$mysqli = new mysqli(self::$db_host, self::$db_un, self::$db_pwd, self::$db_db, self::$db_port);
 			}else{
-				// CAREFUL: UNCOMMENTING THE FOLLOWING LINE OF CODE WILL EXPOSE SESITIVE DATABASE INFORMATION 
-				// THROUGH THE SERVER LOGS.
-				#error_log( "new mysqli(".self::$db_host.", ".self::$db_un.", ".self::$db_pwd.", ".self::$db_db.")");			
+				//print_r( "new mysqli(".self::$db_host.", ".self::$db_un.", ".self::$db_pwd.", ".self::$db_db.")");	
 				$mysqli = new mysqli(self::$db_host, self::$db_un, self::$db_pwd, self::$db_db);
 			}
 			

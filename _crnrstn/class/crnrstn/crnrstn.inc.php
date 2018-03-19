@@ -2,16 +2,17 @@
 /*
 // J5
 // Code is Poetry */
-#  CRNRSTN Suite :: An Open Source PHP Class Library to configure an applications' code-base to run in multiple hosting environments.
+#  CRNRSTN Suite :: An Open Source PHP Class Library to facilitate the execution of an application's code-base across multiple hosting environments.
 #  Copyright (C) 2018 Jonathan 'J5' Harris.
 #  VERSION :: 1.0.0
 #  AUTHOR :: J5
 #  URI :: http://crnrstn.jony5.com/
-#  OVERVIEW :: Once CRNRSTN has been configured for your different hosting environments, seamlessly release a web application from
-#              one environment to the next without having to change your code-base to account for environmentally specific parameters.
-#  LICENSE :: This program is free software: you can redistribute it and/or modify
-#             it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of 
-#             the License, or (at your option) any later version.
+#  OVERVIEW :: Once CRNRSTN has been configured for your different hosting environments from localhost through to production, seamlessly 
+#		   	   release a web application from one environment to the next without having to change your code-base to account for 
+#			   environmentally specific parameters. Configure the profiles of each running environment to account for all of your 
+#			   application's environmentally specific parameters; and do this all from one place with the CRNRSTN Suite ::
+#  LICENSE :: This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public 
+#			  License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -19,7 +20,7 @@
 #  GNU General Public License for more details.
 
 #  You should have received a copy of the GNU General Public License
-#  along with this program. This license can also be downloaded from
+#  along with this program. Thandle_env_ARRAYhis license can also be downloaded from
 #  my web site at (http://crnrstn.jony5.com/license.txt).  
 #  If not, see <http://www.gnu.org/licenses/>
 
@@ -64,7 +65,7 @@ class crnrstn {
 	private static $envMatchCount;
 	private static $envChecksum;
 
-	public function __construct($srvr_ARRAY, $serial) {
+	public function __construct($serial) {
 		#error_log("crnrstn.inc.php (30) Initializing config serialization with :".$serial);
 		//
 		// CHECK SERVER SUPER GLOBAL ARRAY FOR DATA
@@ -79,7 +80,7 @@ class crnrstn {
 
 		
 		try{
-			if(!array_key_exists('SERVER_ADDR', $srvr_ARRAY)){
+			if(!array_key_exists('SERVER_ADDR', $_SERVER)){
 				//
 				// HOOOSTON...VE HAF PROBLEM!
 				throw new Exception('CRNRSTN initialization error :: $_SERVER[] super global has not been passed to the crnrstn class object successfully on server '.$_SERVER['SERVER_NAME'].' ('.$_SERVER['SERVER_ADDR'].').');
@@ -87,8 +88,9 @@ class crnrstn {
 
 				
 				//
-				// STORE SUPER GLOBAL ARRAY WITH SERVER DATA TO SUPPORT ENVIRONMENTAL DETECTION
-				self::$handle_srvr_ARRAY=$srvr_ARRAY;
+				// STORE LOCAL COPY OF SUPER GLOBAL ARRAY WITH SERVER DATA TO SUPPORT ENVIRONMENTAL DETECTION
+				//self::$handle_srvr_ARRAY=$srvr_ARRAY;
+				self::$handle_srvr_ARRAY=$_SERVER;
 				
 				//
 				// STORE CONFIG SERIAL KEY AND INITIALIZE MATCH COUNT.
@@ -108,18 +110,18 @@ class crnrstn {
 		
 				//
 				// INITIALIZE DATABASE CONNECTION MANAGER. [##ENHANCEMENT##]IF MySQL < 4.1.3, NEED TO USE MYSQL PROCEEDURALLY
-				if(!isset($this->oMYSQLI_CONN_MGR)){
+				//if(!isset($this->oMYSQLI_CONN_MGR)){
 					#error_log("crnrstn.inc.php construct() (93) ********CONFIG SERIAL: ******** ".$this->configSerial." *******************");
 					$this->oMYSQLI_CONN_MGR = new crnrstn_mysqli_conn_manager($this->configSerial);
-				}
+				//}
 				
 				//
 				// INITIALIZE IP ADDRESS SECURITY MANAGER
-				if(!isset($this->oCRNRSTN_IPSECURITY_MGR)){
+				//if(!isset($this->oCRNRSTN_IPSECURITY_MGR)){
 					$this->oCRNRSTN_IPSECURITY_MGR = new crnrstn_ip_auth_manager(self::$handle_srvr_ARRAY['REMOTE_ADDR']);
 					#error_log("crnrstn.inc.php construct() (113) ******** IP : ******** ".$this->oCRNRSTN_IPSECURITY_MGR->clientIpAddress()." *******************");
 					
-				}
+				//}
 				
 				//
 				// INITIALIZE CIPHER SECURITY MANAGER
@@ -257,9 +259,22 @@ class crnrstn {
 	
 	public function defineEnvResource($env, $key, $value){
 		#error_log("crnrstn.inc.php (282) defineEnvResource [".$env."][".$key."] :: ".$value);
-		if(self::$serverAppKey[crc32($this->configSerial)]=="" || crc32($env)==self::$serverAppKey[crc32($this->configSerial)] || $env=="*"){
-			$this->addEnvResource(crc32($this->configSerial), crc32($env), trim($key), trim($value)); 
+		try{
+			if($env=="" || $key==""){
+				throw new Exception('CRNRSTN initialization ERROR :: defineEnvResource was called but was missing paramter information and so was not able to be initialized. envKey and resourceKey are required. envKey['.$env.'] resourceKey['.$key.']');
+				
+			}else{
+				if(self::$serverAppKey[crc32($this->configSerial)]=="" || crc32($env)==self::$serverAppKey[crc32($this->configSerial)] || $env=="*"){
+					$this->addEnvResource(crc32($this->configSerial), crc32($env), trim($key), trim($value)); 
+				}
+			}
+		
+		}catch( Exception $e ) {
+			//
+			// SEND THIS THROUGH THE LOGGER OBJECT
+			self::$oLogger->captureNotice('crnrstn->defineEnvResource()', LOG_ERR, $e->getMessage());
 		}
+		
 	}
 	
 	public function addEnvResource($configSerial, $env, $key, $value) {
@@ -329,13 +344,25 @@ class crnrstn {
 										 // ('LOCALHOST_MAC', 'AES-192-OFB', 'this-Is-the-encryption-key', OPENSSL_RAW_DATA, 'sha256');
 	public function initSessionEncryption($env, $encryptCipher, $encryptSecretKey, $encryptOptions, $hmac_alg){	
 		#error_log("crnrstn.inc.php (342) initSessionEncryption with key [".$this->configSerial."] environment [".$env."]");
-		
-		$this->opensslSessEncryptCipher[crc32($this->configSerial)][crc32($env)] = $encryptCipher;
-		$this->opensslSessEncryptSecretKey[crc32($this->configSerial)][crc32($env)] = $encryptSecretKey;
-		$this->opensslSessEncryptOptions[crc32($this->configSerial)][crc32($env)] = $encryptOptions;
-		$this->sessHmac_algorithm[crc32($this->configSerial)][crc32($env)] = $hmac_alg;
-		
-		return true;
+		try{
+			if($env=="" || $encryptCipher=="" || $encryptSecretKey=="" || $hmac_alg==""){
+				throw new Exception('CRNRSTN initialization ERROR :: initSessionEncryption was called but was missing paramter information and so session encryption was not able to be initialized. Some parameters are required. env['.$env.'] encryptCipher['.$encryptCipher.'] encryptSecretKey['.$encryptSecretKey.'] (optional)encryptOptions['.$encryptOptions.'] hmac_alg['.$hmac_alg.']');
+				
+			}else{
+				$this->opensslSessEncryptCipher[crc32($this->configSerial)][crc32($env)] = $encryptCipher;
+				$this->opensslSessEncryptSecretKey[crc32($this->configSerial)][crc32($env)] = $encryptSecretKey;
+				$this->opensslSessEncryptOptions[crc32($this->configSerial)][crc32($env)] = $encryptOptions;
+				$this->sessHmac_algorithm[crc32($this->configSerial)][crc32($env)] = $hmac_alg;
+				
+				return true;
+			}
+						
+			
+		}catch( Exception $e ) {
+			//
+			// SEND THIS THROUGH THE LOGGER OBJECT
+			self::$oLogger->captureNotice('crnrstn->initSessionEncryption()', LOG_ERR, $e->getMessage());
+		}
 	} 
 	
 	public function initCookieEncryption($env, $encryptCipher, $encryptSecretKey, $encryptOptions, $hmac_alg){	

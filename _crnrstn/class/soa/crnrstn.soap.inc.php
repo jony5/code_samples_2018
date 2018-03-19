@@ -2,16 +2,17 @@
 /*
 // J5
 // Code is Poetry */
-#  CRNRSTN Suite :: An Open Source PHP Class Library to configure an applications' code-base to run in multiple hosting environments.
+#  CRNRSTN Suite :: An Open Source PHP Class Library to facilitate the execution of an application's code-base across multiple hosting environments.
 #  Copyright (C) 2018 Jonathan 'J5' Harris.
 #  VERSION :: 1.0.0
 #  AUTHOR :: J5
 #  URI :: http://crnrstn.jony5.com/
-#  OVERVIEW :: Once CRNRSTN has been configured for your different hosting environments, seamlessly release a web application from
-#              one environment to the next without having to change your code-base to account for environmentally specific parameters.
-#  LICENSE :: This program is free software: you can redistribute it and/or modify
-#             it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of 
-#             the License, or (at your option) any later version.
+#  OVERVIEW :: Once CRNRSTN has been configured for your different hosting environments from localhost through to production, seamlessly 
+#		   	   release a web application from one environment to the next without having to change your code-base to account for 
+#			   environmentally specific parameters. Configure the profiles of each running environment to account for all of your 
+#			   application's environmentally specific parameters; and do this all from one place with the CRNRSTN Suite ::
+#  LICENSE :: This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public 
+#			  License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -19,7 +20,7 @@
 #  GNU General Public License for more details.
 
 #  You should have received a copy of the GNU General Public License
-#  along with this program. This license can also be downloaded from
+#  along with this program. Thandle_env_ARRAYhis license can also be downloaded from
 #  my web site at (http://crnrstn.jony5.com/license.txt).  
 #  If not, see <http://www.gnu.org/licenses/>
 
@@ -48,8 +49,8 @@ class crnrstn_soap_manager {
 		
 		//
 		// INITIALIZE THE WSDL
-		self::$tmpWSDL = self::$oSoapEnvironment->get($wsdl_uri_key);
-		self::$tmpTTL =  self::$oSoapEnvironment->get($cache_ttl_key);
+		self::$tmpWSDL = self::$oSoapEnvironment->getEnvParam($wsdl_uri_key);
+		self::$tmpTTL =  self::$oSoapEnvironment->getEnvParam($cache_ttl_key);
 		if(self::$tmpWSDL!=self::$oSoapEnvironment->currentLocation()){	// AVOID INIFINITE LOOP WHERE WEB SERVICE STANDS ON CRNRSTN
 			try{
 				# # # # # # # # # # # # # # # # # # # #
@@ -89,7 +90,7 @@ class crnrstn_soap_manager {
 					throw new Exception('SOAP Client Constructor Error :: '.self::$err);
 				}
 				
-				self::$client->setUseCurl(self::$oSoapEnvironment->get('NUSOAP_USECURL'));
+				self::$client->setUseCurl(self::$oSoapEnvironment->getEnvParam('NUSOAP_USECURL'));
 				
 			} catch ( Exception $e ) {
 				//

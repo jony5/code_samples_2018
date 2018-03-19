@@ -2,17 +2,16 @@
 /*
 // J5
 // Code is Poetry */
-#  CRNRSTN Suite :: An Open Source PHP Class Library to facilitate the execution of an application's code-base across multiple hosting environments.
+#  CRNRSTN Suite :: An Open Source PHP Class Library to configure an applications' code-base to run in multiple hosting environments.
 #  Copyright (C) 2018 Jonathan 'J5' Harris.
 #  VERSION :: 1.0.0
 #  AUTHOR :: J5
 #  URI :: http://crnrstn.jony5.com/
-#  OVERVIEW :: Once CRNRSTN has been configured for your different hosting environments from localhost through to production, seamlessly 
-#		   	   release a web application from one environment to the next without having to change your code-base to account for 
-#			   environmentally specific parameters. Configure the profiles of each running environment to account for all of your 
-#			   application's environmentally specific parameters; and do this all from one place with the CRNRSTN Suite ::
-#  LICENSE :: This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public 
-#			  License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+#  OVERVIEW :: Once CRNRSTN has been configured for your different hosting environments, seamlessly release a web application from
+#              one environment to the next without having to change your code-base to account for environmentally specific parameters.
+#  LICENSE :: This program is free software: you can redistribute it and/or modify
+#             it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of 
+#             the License, or (at your option) any later version.
 
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -20,7 +19,7 @@
 #  GNU General Public License for more details.
 
 #  You should have received a copy of the GNU General Public License
-#  along with this program. Thandle_env_ARRAYhis license can also be downloaded from
+#  along with this program. This license can also be downloaded from
 #  my web site at (http://crnrstn.jony5.com/license.txt).  
 #  If not, see <http://www.gnu.org/licenses/>
 
@@ -137,14 +136,9 @@ class crnrstn_cookie_manager {
 				
 				//
 				// SET THE COOKIE
-				#error_log("(139)[".$name."] [".$value."]");
 				self::$cookieValue_Encrypted = self::$oSESSION_MGR->cookieParamEncrypt($value);
-				self::$cookieName_Encrypted = self::$cookieName_ChecksumSeed.crc32($name);
+				self::$cookieName_Encrypted = self::$cookieName_ChecksumSeed.crc32($name).$_SESSION[$this->configSerial.'CRNRSTN'.crc32('COOKIE_MCRYPT_CIPHER')];
 				
-				
-				#self::$cookieName_ChecksumSeed.crc32($name).$_SESSION[$this->configSerial.'CRNRSTN'.crc32('COOKIE_MCRYPT_CIPHER')];
-				
-				#error_log("crnrstn.cookie.inc.php (141)[".self::$cookieName_Encrypted."][".self::$cookieValue_Encrypted."]");
 				return setcookie (self::$cookieName_Encrypted,self::$cookieValue_Encrypted,$expire,$path,$domain,$secure,$httponly);
 				
 			}else{
@@ -264,10 +258,10 @@ class crnrstn_cookie_manager {
 			if(isset($name)){
 				//
 				// OK TO ATTEMPT TO GET COOKIE
-				self::$cookieName_Encrypted = self::$cookieName_ChecksumSeed.crc32($name);
+				self::$cookieName_Encrypted = self::$cookieName_ChecksumSeed.crc32($name).$_SESSION[$this->configSerial.'CRNRSTN'.crc32('COOKIE_MCRYPT_CIPHER')];
 				if($_COOKIE[self::$cookieName_Encrypted]){
 					self::$cookieValue_Encrypted = $_COOKIE[self::$cookieName_Encrypted];
-					return trim(self::$oSESSION_MGR->cookieParamDecrypt(self::$cookieValue_Encrypted));
+					return trim(self::$oSESSION_MGR->cookieParamDecrypt(self::$cookieValue_Encrypted, $_SESSION[$this->configSerial.'CRNRSTN'.crc32('SESSION_MCRYPT_CIPHER')]));
 				}else{
 				
 					return false;

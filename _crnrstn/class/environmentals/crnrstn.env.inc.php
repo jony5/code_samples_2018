@@ -2,16 +2,17 @@
 /*
 // J5
 // Code is Poetry */
-#  CRNRSTN Suite :: An Open Source PHP Class Library to configure an applications' code-base to run in multiple hosting environments.
+#  CRNRSTN Suite :: An Open Source PHP Class Library to facilitate the execution of an application's code-base across multiple hosting environments.
 #  Copyright (C) 2018 Jonathan 'J5' Harris.
 #  VERSION :: 1.0.0
 #  AUTHOR :: J5
 #  URI :: http://crnrstn.jony5.com/
-#  OVERVIEW :: Once CRNRSTN has been configured for your different hosting environments, seamlessly release a web application from
-#              one environment to the next without having to change your code-base to account for environmentally specific parameters.
-#  LICENSE :: This program is free software: you can redistribute it and/or modify
-#             it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of 
-#             the License, or (at your option) any later version.
+#  OVERVIEW :: Once CRNRSTN has been configured for your different hosting environments from localhost through to production, seamlessly 
+#		   	   release a web application from one environment to the next without having to change your code-base to account for 
+#			   environmentally specific parameters. Configure the profiles of each running environment to account for all of your 
+#			   application's environmentally specific parameters; and do this all from one place with the CRNRSTN Suite ::
+#  LICENSE :: This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public 
+#			  License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -19,9 +20,9 @@
 #  GNU General Public License for more details.
 
 #  You should have received a copy of the GNU General Public License
-#  along with this program. This license can also be downloaded from
+#  along with this program. Thandle_env_ARRAYhis license can also be downloaded from
 #  my web site at (http://crnrstn.jony5.com/license.txt).  
-#  If not, see <http://www.gnu.org/licenses/>
+#  If not, see <http://www.gnu.org/licenses/><strong></strong>
 
 class crnrstn_environmentals {
 	public $configSerial;
@@ -40,6 +41,8 @@ class crnrstn_environmentals {
 	public $oHTTP_MGR;
 	
 	private static $sess_env_param_ARRAY = array();
+	
+	private static $requestProtocol;
 	
 	#private static $srvrSessionShadow = array();		// FALLBACK PARAMETER FOR SESSION-LESS CONNECTIONS
 		
@@ -498,16 +501,16 @@ class crnrstn_environmentals {
 		$this->getHandle_resource_ARRAY = $oCRNRSTN->getHandle_resource_ARRAY();
 		foreach($this->getHandle_resource_ARRAY[crc32($this->configSerial)][$this->oSESSION_MGR->getSessionKey()] as $key=>$value){
 			#self::set($key, $value);
-			#error_log("crnrstn.env.inc.php (501) initEnvResources() key [".$key."] value [".$value."]");
+			//error_log("crnrstn.env.inc.php (503) initEnvResources() key [".$key."] value [".$value."]");
 			$this->oSESSION_MGR->setSessionParam($key, $value);
 		}
 		
 		//
 		// INITIALIZE oENV CLASS OBJECT WITH ANY WILDCARDS
-		if(isset($this->getHandle_resource_ARRAY[crc32('*')])){
-			foreach($this->getHandle_resource_ARRAY[crc32('*')] as $key=>$value){
+		if(isset($this->getHandle_resource_ARRAY[crc32($this->configSerial)][crc32('*')])){
+			foreach($this->getHandle_resource_ARRAY[crc32($this->configSerial)][crc32('*')] as $key=>$value){
 				#self::set($key, $value);
-				#error_log("crnrstn.env.inc.php (510) initEnvResources(*) key [".$key."] value [".$value."]");
+				//error_log("crnrstn.env.inc.php (512) initEnvResources(*) key [".$key."] value [".$value."]");
 				$this->oSESSION_MGR->setSessionParam($key, $value);
 			}
 		}
@@ -602,6 +605,17 @@ background-color:#555555;}
 		
 	}
 	
+	//
+	// RETURN HTTP/S PATH OF CURRENT SCRIPT
+	public function currentLocation(){
+		if($_SERVER['HTTPS']){
+			self::$requestProtocol='https://';
+		}else{
+			self::$requestProtocol='http://';
+		}
+		
+		return self::$requestProtocol.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'];
+	}
 	
 	public function __destruct() {
 		
