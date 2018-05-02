@@ -105,7 +105,7 @@ class crnrstn_session_manager {
 	}
 	#$_SESSION['CRNRSTN_CONFIG_SERIAL']
 	#$_SESSION['CRNRSTN_'.crc32($this->configSerial)]['CRNRSTN_RESOURCE_KEY']
-	public function setSessionParam($sessParam, $val){
+	public function setSessionParam($sessParam, $val=NULL){
 		#error_log("crnrstn.session.inc.php (107) Setting a session param [".$sessParam."] with value [".$val."] and config serial: [".$_SESSION['CRNRSTN_CONFIG_SERIAL']."] | Resource Key: [".$this->resourceKey."]");
 
 		
@@ -255,7 +255,6 @@ class crnrstn_session_manager {
 	private function sessionParamEncrypt($val){
 		#error_log("crnrstn.session.inc.php (221) sessionParamEncrypt() encrypt cipher [".$_SESSION["CRNRSTN_".crc32($this->configSerial)]["CRNRSTN_".$this->resourceKey]["_CRNRSTN_SESS_ENCRYPT_CIPHER"]."]");
 		
-		
 		try{
 			#if($this->issetSessionParam("_CRNRSTN_SESS_ENCRYPT_CIPHER")){
 			if(isset($_SESSION["CRNRSTN_".crc32($this->configSerial)]["CRNRSTN_".$this->resourceKey]["_CRNRSTN_SESS_ENCRYPT_CIPHER"])){
@@ -324,86 +323,6 @@ class crnrstn_session_manager {
 		}
 	}
 
-	public function cookieParamEncrypt($val){
-		
-		try{
-			#if($this->issetSessionParam("_CRNRSTN_SESS_ENCRYPT_CIPHER")){
-			#error_log("crnrstn.session.inc.php (320) _SESSION['CRNRSTN_CONFIG_SERIAL'] [".$_SESSION['CRNRSTN_CONFIG_SERIAL']."] and configSerial [".$this->configSerial."]");
-			if(isset($_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_CIPHER"])){
-#error_log("crnrstn.env.inc.php (231) cookieParamEncrypt() _CRNRSTN_COOKIE_ENCRYPT_CIPHER [".$_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_CIPHER"]."] ");
-#error_log("crnrstn.env.inc.php (232) cookieParamEncrypt() _CRNRSTN_COOKIE_ENCRYPT_SECRET_KEY [".$_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_SECRET_KEY"]."] ");
-#error_log("crnrstn.env.inc.php (233) cookieParamEncrypt() _CRNRSTN_COOKIE_ENCRYPT_OPTIONS [".$_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_OPTIONS"]."] ");
-#error_log("crnrstn.env.inc.php (234) cookieParamEncrypt() _CRNRSTN_COOKIE_ENCRYPT_HMAC_ALG [".$_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_HMAC_ALG"]."] ");
-		
-				$ivlen = openssl_cipher_iv_length($cipher=$_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_CIPHER"]);
-				$iv = openssl_random_pseudo_bytes($ivlen);
-				$ciphertext_raw = openssl_encrypt($val, $_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_CIPHER"], $_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_SECRET_KEY"], $options=$_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_OPTIONS"], $iv);
-				$hmac = hash_hmac($_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_HMAC_ALG"], $ciphertext_raw, $_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_SECRET_KEY"], $as_binary=true);
-				$ciphertext = base64_encode( $iv.$hmac.$ciphertext_raw );
-				
-#				error_log("crnrstn.session.inc.php (238) sessionParamEncrypt() returning encrypted value [".$ciphertext."] ");
-				return $ciphertext;
-			}else{
-				#error_log("crnrstn.session.inc.php (335) cookieParamEncrypt() _CRNRSTN_COOKIE_ENCRYPT_CIPHER not set in session...");
-				return $val;
-			}
-
-		}catch( Exception $e ) {
-			//
-			// SEND THIS THROUGH THE LOGGER OBJECT
-			self::$oLogger->captureNotice('session_manager->cookieParamEncrypt()', LOG_EMERG, $e->getMessage());
-		}
-		
-
-
-
-	}
-	 
-	public function cookieParamDecrypt($val){
-	
-		#error_log("crnrstn.session.inc.php (356) cookieParamDecrypt() decryption attempt for Val: ".$val);
-		#error_log("[".$this->getSessionParam("_CRNRSTN_SESS_ENCRYPT_CIPHER"));
-		try{
-			
-			if(isset($_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_CIPHER"])){
-//error_log("crnrstn.env.inc.php (278) sessionParamEncrypt() _CRNRSTN_SESS_ENCRYPT_CIPHER [".$_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_SESS_ENCRYPT_CIPHER"]."] ");
-//error_log("crnrstn.env.inc.php (279) sessionParamEncrypt() _CRNRSTN_SESS_ENCRYPT_SECRET_KEY [".$_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_SESS_ENCRYPT_SECRET_KEY"]."] ");
-//error_log("crnrstn.env.inc.php (280) sessionParamEncrypt() _CRNRSTN_SESS_ENCRYPT_OPTIONS [".$_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_SESS_ENCRYPT_OPTIONS"]."] ");
-//error_log("crnrstn.env.inc.php (281) sessionParamEncrypt() _CRNRSTN_SESS_ENCRYPT_HMAC_ALG [".$_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_SESS_ENCRYPT_HMAC_ALG"]."] ");
-
-				$c = base64_decode($val);
-				$ivlen = openssl_cipher_iv_length($cipher=$_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_CIPHER"]);
-				$iv = substr($c, 0, $ivlen);
-				$hmac = substr($c, $ivlen, $sha2len=32);
-				$ciphertext_raw = substr($c, $ivlen+$sha2len);
-				$original_plaintext = openssl_decrypt($ciphertext_raw, $_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_CIPHER"], $_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_SECRET_KEY"], $options=$_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_OPTIONS"], $iv);
-				$calcmac = hash_hmac($_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_HMAC_ALG"], $ciphertext_raw, $_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_SECRET_KEY"], $as_binary=true);
-				
-				if (hash_equals($hmac, $calcmac))//PHP 5.6+ timing attack safe comparison
-				{
-					#error_log("crnrstn.session.inc.php (297) DECRYPTED PARAM CIPHER --> [".$_SESSION["CRNRSTN_".crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]["CRNRSTN_".$_SESSION['CRNRSTN_'.crc32($_SESSION['CRNRSTN_CONFIG_SERIAL'])]['CRNRSTN_RESOURCE_KEY']]["_CRNRSTN_COOKIE_ENCRYPT_CIPHER"]."]");
-					return $original_plaintext;
-				}else{
-					//
-					// HOOOSTON...VE HAF PROBLEM!
-					#error_log("HOOOSTON...VE HAF PROBLEM!");
-					throw new Exception('CRNRSTN Cookie Param Decrypt Notice :: Oops. Something went wrong. Hash_equals comparison failed during data decryption.');
-				}
-			
-			}else{
-				//
-				// NO ENCRYPTION. RETURN VAL
-				#error_log("crnrstn.session.inc.php (308) DECRYPTED PARAM (ENCRYPT IS CLEARTEXT) --> [".$val."]");
-				return $val;
-			}
-			
-		}catch( Exception $e ) {
-			//
-			// SEND THIS THROUGH THE LOGGER OBJECT
-			self::$oLogger->captureNotice('session_manager->cookieParamDecrypt()', LOG_EMERG, $e->getMessage());
-		}
-
-	}
 
 
 	public function __destruct() {

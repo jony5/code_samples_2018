@@ -34,10 +34,11 @@ class crnrstn_soap_manager {
 	
 	private static $tmpWSDL;
 	private static $tmpTTL;
+	private static $tmpCURL;
 	private static $oLogger;
 	private static $oSoapEnvironment;
 	
-	public function __construct($userEnv,$wsdl_uri_key,$cache_ttl_key) {
+	public function __construct($userEnv,$wsdl_uri_key,$cache_ttl_key,$useCURL_key) {
 	
 		self::$oSoapEnvironment = $userEnv;
 		
@@ -51,14 +52,10 @@ class crnrstn_soap_manager {
 		// INITIALIZE THE WSDL
 		self::$tmpWSDL = self::$oSoapEnvironment->getEnvParam($wsdl_uri_key);
 		self::$tmpTTL =  self::$oSoapEnvironment->getEnvParam($cache_ttl_key);
+		self::$tmpCURL = self::$oSoapEnvironment->getEnvParam($useCURL_key);
 		if(self::$tmpWSDL!=self::$oSoapEnvironment->currentLocation()){	// AVOID INIFINITE LOOP WHERE WEB SERVICE STANDS ON CRNRSTN
 			try{
-				# # # # # # # # # # # # # # # # # # # #
-				# INSPIRATION :: WDSLCLIENT4.PHP,v 1.6 2005/05/12 21:42:06 SNICHOL EEP
-				# WSDL CLIENT SAMPLE, BASED ON SOAP BUILDERS ROUND 2 INTEROP
-				# SERVICE :: WSDL || PAYLOAD :: RPC/ENCODED || TRANSPORT :: HTTP || AUTHENTICATION :: NONE
-				# # # # # # # # # # # # # # # # # # # #
-				#error_log("crnrstn.soap.inc.php (40) tmpWSDL value: ".self::$tmpWSDL);
+
 				self::$cache = new wsdlcache('.',self::$tmpTTL);
 				self::$wsdl = self::$cache->get(self::$tmpWSDL);
 				
@@ -90,7 +87,7 @@ class crnrstn_soap_manager {
 					throw new Exception('SOAP Client Constructor Error :: '.self::$err);
 				}
 				
-				self::$client->setUseCurl(self::$oSoapEnvironment->getEnvParam('NUSOAP_USECURL'));
+				self::$client->setUseCurl(self::$oSoapEnvironment->getEnvParam(self::$tmpCURL));
 				
 			} catch ( Exception $e ) {
 				//
@@ -110,7 +107,7 @@ class crnrstn_soap_manager {
 		// SEND SOAP REQUEST
 		try{
 			$this->result = self::$client->call($methodName, $params);
-			
+			//print_r($this->returnClientResponse());
 			//
 			// CHECK FOR A FAULT
 			if (self::$client->fault) {

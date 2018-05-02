@@ -53,7 +53,7 @@ class crnrstn_environmentals {
 		$this->log_endpt_ARRAY = $oCRNRSTN->get_log_endpt_ARRAY();
 		
 		#error_log("crnrstn.env.inc.php (62) COOKIE MGR INSTANTIATION");
-		$this->oCOOKIE_MGR = new crnrstn_cookie_manager($this);
+		$this->oCOOKIE_MGR = new crnrstn_cookie_manager();
 		$this->oHTTP_MGR = new crnrstn_http_manager();
 		
 		#self::$serverAppKey[$configSerial] = $env;		
@@ -300,7 +300,7 @@ class crnrstn_environmentals {
 						//
 						// INSTANTIATE COOKIE MANAGER
 //						if(!isset($this->oCOOKIE_MGR)){
-//							$this->oCOOKIE_MGR = new crnrstn_cookie_manager($this);
+//							$this->oCOOKIE_MGR = new crnrstn_cookie_manager();
 //						}
 //						
 //						//

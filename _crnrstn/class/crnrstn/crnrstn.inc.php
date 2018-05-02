@@ -65,11 +65,7 @@ class crnrstn {
 	private static $envMatchCount;
 	private static $envChecksum;
 
-	public function __construct($serial) {
-		#error_log("crnrstn.inc.php (30) Initializing config serialization with :".$serial);
-		//
-		// CHECK SERVER SUPER GLOBAL ARRAY FOR DATA
-										
+	public function __construct($serial) {			
 				
 		//
 		// INSTANTIATE LOGGER
@@ -83,7 +79,7 @@ class crnrstn {
 			if(!array_key_exists('SERVER_ADDR', $_SERVER)){
 				//
 				// HOOOSTON...VE HAF PROBLEM!
-				throw new Exception('CRNRSTN initialization error :: $_SERVER[] super global has not been passed to the crnrstn class object successfully on server '.$_SERVER['SERVER_NAME'].' ('.$_SERVER['SERVER_ADDR'].').');
+				throw new Exception('CRNRSTN initialization error :: $_SERVER[] super global has not been initialized. If calling this program via script, try using cURL (/usr/bin/curl). SERVER_NAME(SERVER_ADDR)-> '.$_SERVER['SERVER_NAME'].' ('.$_SERVER['SERVER_ADDR'].').');
 			}else{	
 
 				
@@ -122,15 +118,7 @@ class crnrstn {
 					#error_log("crnrstn.inc.php construct() (113) ******** IP : ******** ".$this->oCRNRSTN_IPSECURITY_MGR->clientIpAddress()." *******************");
 					
 				//}
-				
-				//
-				// INITIALIZE CIPHER SECURITY MANAGER
-				#if(!isset($this->oCRNRSTN_CIPHER_MGR)){
-					#error_log("crnrstn.inc.php (100) passing in configSerial of ".$this->configSerial." to cipher_manager");
-				#	$this->oCRNRSTN_CIPHER_MGR = new crnrstn_cipher_manager($this->configSerial);
-				#}			
-			
-			
+
 			}
 		} catch( Exception $e ) {
 			//
@@ -148,7 +136,6 @@ class crnrstn {
 	}
 	
 	
-	
 	public function addEnvironment($key, $errorReporting){
 		#error_log("crnrstn.inc.php addEnvironment (102) ********CONFIG SERIAL: ******** ".$this->configSerial." *******************");
 		$this->addServerEnv(crc32($this->configSerial), crc32($key), $errorReporting);
@@ -156,7 +143,7 @@ class crnrstn {
 	}
 
 
-	public function addServerEnv($configSerial, $key, $errRptProfl) {
+	private function addServerEnv($configSerial, $key, $errRptProfl) {
 		#error_log("crnrstn.inc.php (153) addServerEnv() ******** errRptProfl: ******** ".$errRptProfl." *******************");
 		try{
 			if(!isset($this->handle_env_ARRAY[$configSerial][$key])){
@@ -166,12 +153,12 @@ class crnrstn {
 			}else{
 				//
 				// 	THIS KEY HAS ALREADY BEEN INITIALIZED
-				throw new Exception('CRNRSTN initialization notice :: This environmental key ('.$key.') has already been initialized.');
+				throw new Exception('CRNRSTN initialization warning :: This environmental key ('.$key.') has already been initialized.');
 			}
 		}catch( Exception $e ) {
 			//
 			// SEND THIS THROUGH THE LOGGER OBJECT
-			self::$oLogger->captureNotice('crnrstn->addServerEnv()', LOG_INFO, $e->getMessage());
+			self::$oLogger->captureNotice('crnrstn->addServerEnv()', LOG_WARNING, $e->getMessage());
 		}
     }
 	
@@ -183,7 +170,7 @@ class crnrstn {
 		}
 		
 		return true;
-		#error_log("crnrstn.inc.php (135) initLogging count: ".sizeof(self::$log_profl_ARRAY).", log_endpt_ARRAY: ".self::$log_endpt_ARRAY[crc32($key)]);
+
 	}
 	
 	public function grantExclusiveAccess($env, $ipOrFile){
@@ -367,13 +354,27 @@ class crnrstn {
 	
 	public function initCookieEncryption($env, $encryptCipher, $encryptSecretKey, $encryptOptions, $hmac_alg){	
 		#error_log("crnrstn.inc.php (342) initSessionEncryption with key [".$this->configSerial."] environment [".$env."]");
-		
-		$this->opensslCookieEncryptCipher[crc32($this->configSerial)][crc32($env)] = $encryptCipher;
-		$this->opensslCookieEncryptSecretKey[crc32($this->configSerial)][crc32($env)] = $encryptSecretKey;
-		$this->opensslCookieEncryptOptions[crc32($this->configSerial)][crc32($env)] = $encryptOptions;
-		$this->cookieHmac_algorithm[crc32($this->configSerial)][crc32($env)] = $hmac_alg;
-		
-		return true;
+		try{
+			if($env=="" || $encryptCipher=="" || $encryptSecretKey=="" || $hmac_alg==""){
+				throw new Exception('CRNRSTN initialization ERROR :: initCookieEncryption was called but was missing paramter information and so cookie encryption was not able to be initialized. Some parameters are required. env['.$env.'] encryptCipher['.$encryptCipher.'] encryptSecretKey['.$encryptSecretKey.'] (optional)encryptOptions['.$encryptOptions.'] hmac_alg['.$hmac_alg.']');
+				
+			}else{
+				
+				$this->opensslCookieEncryptCipher[crc32($this->configSerial)][crc32($env)] = $encryptCipher;
+				$this->opensslCookieEncryptSecretKey[crc32($this->configSerial)][crc32($env)] = $encryptSecretKey;
+				$this->opensslCookieEncryptOptions[crc32($this->configSerial)][crc32($env)] = $encryptOptions;
+				$this->cookieHmac_algorithm[crc32($this->configSerial)][crc32($env)] = $hmac_alg;
+			
+				return true;
+			}
+			
+		}catch( Exception $e ) {
+			//
+			// SEND THIS THROUGH THE LOGGER OBJECT
+			self::$oLogger->captureNotice('crnrstn->initSessionEncryption()', LOG_ERR, $e->getMessage());
+		}
+			
+			
 	} 
 	
 	public function setServerEnv(){
@@ -422,7 +423,8 @@ class crnrstn {
 			try{
 				//
 				// WE SHOULD HAVE THIS VALUE BY NOW. IF NULL, HOOOSTON...VE HAF PROBLEM!. $_SERVER['SERVER_NAME']
-				if(self::$serverAppKey[$serial] == ""){
+				#if(self::$serverAppKey[$serial] == ""){
+				if(self::$serverAppKey[crc32($this->configSerial)] == ""){
 					throw new Exception('CRNRSTN environmental initialization error :: Environmental detection failed to match a sufficient number of parameters to your servers configuration to successfully initialize CRNRSTN on server '.self::$handle_srvr_ARRAY['SERVER_NAME'].' ('.self::$handle_srvr_ARRAY['SERVER_ADDR'].')');
 				}
 			

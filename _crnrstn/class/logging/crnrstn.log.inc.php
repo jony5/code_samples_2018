@@ -91,9 +91,6 @@ class crnrstn_logging {
 		
 	}
 	
-	public function specifyLoggingProfile(){
-		
-	}
 					
 	public function captureNotice($logSource, $logPriority, $msg){
 		#error_log("crnrstn.log.inc.php (98) configSerial: ".$_SESSION['CRNRSTN_CONFIG_SERIAL']." | tmp_key = ".$_SESSION['CRNRSTN_RESOURCE_KEY']);  CRNRSTN_RESOURCE_KEY
@@ -162,7 +159,8 @@ Thanks!';
 				error_log('Source: '.$logSource.'|| Priority: '.$logPriority.'|| Message: '.$msg);
 			break;
 		}
-
+		
+		return true;
 	}
 	
 	public function __destruct() {
