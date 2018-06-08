@@ -213,7 +213,7 @@ if(!$oENV->isConfigured($oCRNRSTN)){
 	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 	# DOCUMENT_ROOT									(e.g. 'C:\\[path]\\[to]\\[site-root]\\[folder]\\' or '/var/www/')
 	# SERVER_NAME									(e.g. 'localhost' or 'stage.mydomain.com' or 'mydomain.com')
-	# REMOTE_ADDR									(e.g. '127.0.0.1' or '265.121.2.110')
+	# SERVER_ADDR									(e.g. '265.121.2.110')
 	# SERVER_SIGNATURE
 	# ...{ANY OTHER $_SERVER[] SUPER GLOBAL PARAMETER MAY BE USED TO SUPPORT CRNRSTN SERVER DETECTION}...
 	# 
