@@ -8,6 +8,7 @@ class database_integration {
 	
 	private static $query;
 	private static $query_elements;
+	private static $MYSQLi_queryType;
 	private static $result;
 	private static $result_ARRAY = array();
 	private static $queryDescript_ARRAY = array();
@@ -19,11 +20,17 @@ class database_integration {
 		self::$oLogger = new crnrstn_logging();
 	}
 	
+	public function svc_logActivity($oService, $oWebServiceEnvironment){
+		return $this->dbQuery('svc_logActivity', $oWebServiceEnvironment, $oService);
+	}
+	
 	public function svc_searchResultsSuggest($oUser, $oUserEnvironment, $contentType){
+		//error_log("services database.inc.php (25) svc_searchResultsSuggest() [".$contentType."]");
 		return $this->dbQuery($contentType, $oUserEnvironment, $oUser);
 	}
 	
 	public function svc_getSearchResultsFull($oUser, $oUserEnvironment, $contentType){
+		//error_log("services database.inc.php (30) svc_getSearchResultsFull() [".$contentType."]");
 		return $this->dbQuery($contentType, $oUserEnvironment, $oUser);
 	}
 	
@@ -83,6 +90,10 @@ class database_integration {
 		return $this->dbQuery('svc_postUserComment', $oWebServiceEnvironment, $oService);
 	}
 	
+	public function svc_postUserCommentReply($oService, $oWebServiceEnvironment){
+		return $this->dbQuery('svc_postUserCommentReply', $oWebServiceEnvironment, $oService);
+	}
+	
 	public function svc_deleteUserComment($oService, $oWebServiceEnvironment){
 		return $this->dbQuery('svc_deleteUserComment', $oWebServiceEnvironment, $oService);
 	}
@@ -103,6 +114,27 @@ class database_integration {
 		//
 		// CHECK FOR USERNAME COLLISION
 		return $this->dbQuery('svc_isUserUnique', $oUserEnvironment, $oUser);
+	}
+	
+	public function svc_resetPassword($oUser, $oUserEnvironment){
+		//error_log("services database.inc.php (118) svc_resetPassword called...");
+		return $this->dbQuery('svc_resetPassword', $oUserEnvironment, $oUser);
+	}
+	
+	public function svc_resetPassword2($oUser, $oUserEnvironment){
+		return $this->dbQuery('svc_resetPassword2', $oUserEnvironment, $oUser);
+	}
+	
+	public function svc_toggleLikeLink($oUser, $oUserEnvironment){
+		return $this->dbQuery('svc_toggleLikeLink', $oUserEnvironment, $oUser);
+	}
+	
+	public function svc_triggerActivationEmail($oUser, $oUserEnvironment){
+		return $this->dbQuery('svc_triggerActivationEmail', $oUserEnvironment, $oUser);
+	}
+	
+	public function svc_trkDwnld($oUser, $oUserEnvironment){
+		return $this->dbQuery('svc_trkDwnld', $oUserEnvironment, $oUser);
 	}
 	
 	public function svc_activateNewUser($oUser, $oUserEnvironment){
@@ -129,177 +161,36 @@ class database_integration {
 		return $this->dbQuery('svc_retrieveUserAccnt', $oUserEnvironment, $oUser);
 	}
 	
-	public function unsubscribeEmail($oUser, $oUserEnvironment){
-		return $this->dbQuery('email_unsub', $oUserEnvironment, $oUser);
-	}
-	
-	public function getUnsubSuppression($oUser, $oUserEnvironment){
-		return $this->dbQuery('get_unsub_suppression', $oUserEnvironment, $oUser);
-	}
-	
 	private function dbQuery($queryType, $oUserEnvironment, $oUser){
 		try{
+			//error_log('(163) queryType sent to /services/ user database_integrations class object :: '.$queryType);
 			$ts = date("Y-m-d H:i:s", time()-60*60*6);
 			
 			//
 			// OPEN CONNECTION
 			$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->returnConnection();
-						
+					
 			switch($queryType){
-				case 'email_unsub':
-					//
-					// CHECK THE UNSUB DATABASE TO SEE IF EMAIL EXISTS ALREADY.
-					self::$query = 'SELECT `email_unsub`.`EMAIL`,`email_unsub`.`UNSUB_COUNT` FROM `email_unsub` WHERE 
-					`email_unsub`.`EMAIL`="'.$mysqli->real_escape_string(strtolower(trim($oUser->retrieve_Form_Data('EMAIL')))).'" AND `email_unsub`.`EMAIL_CRC32`="'.crc32(strtolower(trim($oUser->retrieve_Form_Data('EMAIL')))).'" LIMIT 1;';					
-					
-					//
-					// PROCESS QUERY
-					//error_log("evifweb database (809) query->".self::$query);
+				case 'svc_logActivity':
+					self::$query="INSERT INTO log_activity (`ACTIVITY_TYPE` , `ACTIVITY_NAME`,`PHPSESSION_ID`, `ACTIVITY_CONTENTID`, `SCRIPT_NAME`, `HTTP_USER_AGENT`, `HTTP_REFERER`, `HTTP_HEADERS`,
+	 `REQUEST_METHOD`, `REMOTE_ADDR`) VALUES ('".$oUser->getReqParamByKey('ACTIVITY_TYPE')."',
+	'".$oUser->getReqParamByKey('ACTIVITY_NAME')."',
+	'".$mysqli->real_escape_string($oUser->getReqParamByKey('PHPSESSION_ID'))."',
+	'".$mysqli->real_escape_string($oUser->getReqParamByKey('ACTIVITY_CONTENTID'))."',
+	'".$mysqli->real_escape_string($oUser->getReqParamByKey('SCRIPT_NAME'))."',
+	'".$mysqli->real_escape_string($oUser->getReqParamByKey('HTTP_USER_AGENT'))."',
+	'".$mysqli->real_escape_string($oUser->getReqParamByKey('HTTP_REFERER'))."',
+	'".$mysqli->real_escape_string($oUser->getReqParamByKey('HTTP_HEADERS'))."',
+	'".$oUser->getReqParamByKey('REQUEST_METHOD')."',
+	'".$oUser->getReqParamByKey('REMOTE_ADDR')."');";
+	
 					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
 					if($mysqli->error){
-						self::$query_exception_result = "email_unsub=error";
-						throw new Exception('EVIFWEB database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+						return 'error';
 					
 					}else{
-						//
-						// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
-						$ROWCNT=0;
-						while ($row = self::$result->fetch_row()) {
-							foreach($row as $fieldPos=>$value){
-								//
-								// STORE RESULT
-								//error_log("evifweb /database.inc.php (823) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
-								self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
-								
-							}
-							$ROWCNT++;
-						}
-						self::$result->free();
-						
-						$tmp_unsub_id = $oUser->generateNewKey(70);
-						switch($ROWCNT){
-							case 0:
-								//
-								// EMAIL DOES NOT EXISTS. INSERT.
-								error_log("evifweb database email_unsub (1201) email does not exist in unsub.");
-								self::$query = 'INSERT INTO `email_unsub` (`EMAIL`,`EMAIL_CRC32`,`IPADDRESS`,`HTTP_USER_AGENT`,`DATEMODIFIED`) VALUES (
-									"'.$mysqli->real_escape_string(strtolower(trim($oUser->retrieve_Form_Data('EMAIL')))).'",
-									"'.crc32(strtolower(trim($oUser->retrieve_Form_Data('EMAIL')))).'",
-									"'.$_SERVER['REMOTE_ADDR'].'",
-									"'.$mysqli->real_escape_string($_SERVER['HTTP_USER_AGENT']).'",
-									"'.$ts.'");';
-								
-								self::$query .= 'INSERT INTO `log_email_unsub` (`UNSUBID`,`EMAIL`,`EMAIL_CRC32`,`MSG_SOURCEID`,`SESSIONID`,`IPADDRESS`,`HTTP_USER_AGENT`) VALUES (
-												"'.$tmp_unsub_id.'",
-												"'.$mysqli->real_escape_string(strtolower(trim($oUser->retrieve_Form_Data('EMAIL')))).'",
-												"'.crc32(strtolower(trim($oUser->retrieve_Form_Data('EMAIL')))).'",
-												"'.$mysqli->real_escape_string(trim($oUser->retrieve_Form_Data('MSG_SOURCEID'))).'",
-												"'.session_id().'",
-												"'.$_SERVER['REMOTE_ADDR'].'",
-												"'.$mysqli->real_escape_string($_SERVER['HTTP_USER_AGENT']).'");';
-					
-					
-								//
-								// PROCESS QUERY
-								//error_log("evifweb database (112) contact_home query->".self::$query);
-								$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
-								if($mysqli->error){
-									self::$query_exception_result="unsub=error";
-									throw new Exception('EVIFWEB database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
-								
-								}else{
-									return "unsub=success";
-								}
-											
-											
-								
-							break;
-							default:
-								//
-								// EMAIL EXISTS ALREADY. UPDATE DATEMODIFIED TIMESTAMP...AND HELL...INCREMENT AN OPT OUT COUNTER AS WELL.
-								error_log("evifweb database email_unsub (1208) email exist in ubnsub.");
-								
-								//
-								// INCREMENT UNSUB COUNT
-								self::$result_ARRAY[0][1]++;
-								
-								self::$query = 'UPDATE `email_unsub` SET `UNSUB_COUNT`="'.self::$result_ARRAY[0][1].'",`DATEMODIFIED`="'.$ts.'" 
-									WHERE `EMAIL`="'.$mysqli->real_escape_string(strtolower(trim($oUser->retrieve_Form_Data('EMAIL')))).'" AND 
-									`EMAIL_CRC32`="'.crc32(strtolower(trim($oUser->retrieve_Form_Data('EMAIL')))).'" LIMIT 1;';
-								
-								self::$query .= 'INSERT INTO `log_email_unsub` (`UNSUBID`,`EMAIL`,`EMAIL_CRC32`,`MSG_SOURCEID`,`SESSIONID`,`IPADDRESS`,`HTTP_USER_AGENT`) VALUES (
-												"'.$tmp_unsub_id.'",
-												"'.$mysqli->real_escape_string(strtolower(trim($oUser->retrieve_Form_Data('EMAIL')))).'",
-												"'.crc32(strtolower(trim($oUser->retrieve_Form_Data('EMAIL')))).'",
-												"'.$mysqli->real_escape_string(trim($oUser->retrieve_Form_Data('MSG_SOURCEID'))).'",
-												"'.session_id().'",
-												"'.$_SERVER['REMOTE_ADDR'].'",
-												"'.$mysqli->real_escape_string($_SERVER['HTTP_USER_AGENT']).'");';
-					
-					
-								//
-								// PROCESS QUERY
-								//error_log("evifweb database (112) contact_home query->".self::$query);
-								$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
-								if($mysqli->error){
-									self::$query_exception_result="unsub=error";
-									throw new Exception('EVIFWEB database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
-								
-								}else{
-									return "unsub=success";
-								}
-											
-								
-								return "unsub=success";
-							break;
-						
-						}
-									
-						//
-						// CLOSE CONNECTION
-						$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);
-					
+						return 'success';
 					}
-					
-				break;
-				case 'get_unsub_suppression':
-					self::$query = 'SELECT `email_unsub`.`EMAIL` FROM `email_unsub`;';					
-					
-					//
-					// PROCESS QUERY
-					//error_log("evifweb database (809) query->".self::$query);
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
-					if($mysqli->error){
-						self::$query_exception_result = "error";
-						throw new Exception('EVIFWEB database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
-					
-					}else{
-						//
-						// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
-						$ROWCNT=0;
-						while ($row = self::$result->fetch_row()) {
-							foreach($row as $fieldPos=>$value){
-								//
-								// STORE RESULT
-								//error_log("evifweb /database.inc.php (823) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
-								self::$result_ARRAY[$value]=1;
-								
-							}
-							$ROWCNT++;
-						}
-						self::$result->free();
-				
-						//
-						// CLOSE CONNECTION
-						$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);
-						
-						//
-						// RETURN RESULT SET ARRAY
-						return self::$result_ARRAY;
-						
-					}
-					
-					
 				break;
 				case 'searchall':
 					self::$query = '';
@@ -322,38 +213,42 @@ class database_integration {
 								//
 								// CRNRSTN CONTENT :: RETURN ALL RESULTS
 								if(strtolower($oUser->getReqParamByKey('FILTER'))=='all' || $oUser->getReqParamByKey('FILTER')==''){
-									self::$query .= 'SELECT `crnrstn_class`.`NAME`,`crnrstn_class`.`DESCRIPTION`,`crnrstn_class`.`URI` FROM `crnrstn_class` WHERE `crnrstn_class`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_class`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';
-									self::$query .= 'SELECT `crnrstn_method`.`NAME`,`crnrstn_method`.`DESCRIPTION`,`crnrstn_method`.`URI` FROM `crnrstn_method` WHERE `crnrstn_method`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_method`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DEFINITION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`RETURNED_SEARCH` LIKE "%'.$val.'%";';
-									self::$query .= 'SELECT `crnrstn_examples`.`TITLE`,`crnrstn_examples`.`DESCRIPTION`,`crnrstn_examples`.`URI` FROM `crnrstn_examples` WHERE `crnrstn_examples`.`TITLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`EXAMPLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';
-									self::$query .= 'SELECT `crnrstn_params`.`NAME`,`crnrstn_params`.`DESCRIPTION`,`crnrstn_params`.`URI` FROM `crnrstn_params` WHERE `crnrstn_params`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_params`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';
-									self::$query .= 'SELECT `crnrstn_techspecs`.`TECHSPEC_CONTENT`,`crnrstn_techspecs`.`URI` FROM `crnrstn_techspecs` WHERE `crnrstn_techspecs`.`TECHSPEC_SEARCH` LIKE "%'.$val.'%";';
+									self::$query .= 'SELECT `crnrstn_class`.`NAME`,`crnrstn_class`.`DESCRIPTION`,`crnrstn_class`.`URI` FROM `crnrstn_class` WHERE (`crnrstn_class`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_class`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_class`.`ISACTIVE`="1";';
+									self::$query .= 'SELECT `crnrstn_method`.`NAME`,`crnrstn_method`.`DESCRIPTION`,`crnrstn_method`.`URI` FROM `crnrstn_method` WHERE (`crnrstn_method`.`NAME_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DEFINITION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`RETURNED_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_method`.`ISACTIVE`="1";';
+									self::$query .= 'SELECT `crnrstn_examples`.`TITLE`,`crnrstn_examples`.`DESCRIPTION`,`crnrstn_examples`.`URI` FROM `crnrstn_examples` WHERE (`crnrstn_examples`.`TITLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`EXAMPLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_examples`.`ISACTIVE`="1";';
+									self::$query .= 'SELECT `crnrstn_params`.`NAME`,`crnrstn_params`.`DESCRIPTION`,`crnrstn_params`.`URI` FROM `crnrstn_params` WHERE (`crnrstn_params`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_params`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_params`.`ISACTIVE`="1";';
+									self::$query .= 'SELECT `crnrstn_techspecs`.`TECHSPEC_CONTENT`,`crnrstn_techspecs`.`URI` FROM `crnrstn_techspecs` WHERE `crnrstn_techspecs`.`TECHSPEC_SEARCH` LIKE "%'.$val.'%" AND `ISACTIVE`="1";';
 								
 									//
-									// UGC CONTENT :: INTEGRATION OF PAGINATION INTO SQL?
+									// UGC CONTENT :: INTEGRATION OF PAGINATION INTO SQL? 
 									if($oUser->getReqParamByKey('USERNAME')!=''){
-										self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search` WHERE (`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`SUBJECT` LIKE "%'.$val.'%") AND (`crnrstn_ugc_search`.`ISACTIVE`="1" || `crnrstn_ugc_search`.`ISACTIVE`="2");';
+										self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search` WHERE (`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`SUBJECT` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`NOTE_SEARCH` LIKE "%'.$val.'%") AND (`crnrstn_ugc_search`.`ISACTIVE`="1" || `crnrstn_ugc_search`.`ISACTIVE`="2");';
 										#self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search`;';
 									}else{
-										self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search` WHERE (`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`SUBJECT` LIKE "%'.$val.'%") AND `crnrstn_ugc_search`.`ISACTIVE`="2";';
+										self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search` WHERE (`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`SUBJECT` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`NOTE_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_ugc_search`.`ISACTIVE`="2";';
 										#self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search`;';
 									}
 								}else{
 									if(strtolower($oUser->getReqParamByKey('FILTER'))=='ugc'){
 										if($oUser->getReqParamByKey('USERNAME')!=''){
-											self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search` WHERE (`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`SUBJECT` LIKE "%'.$val.'%") AND (`crnrstn_ugc_search`.`ISACTIVE`="1" || `crnrstn_ugc_search`.`ISACTIVE`="2");';
+											self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search` WHERE (`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`SUBJECT` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`NOTE_SEARCH` LIKE "%'.$val.'%") AND (`crnrstn_ugc_search`.`ISACTIVE`="1" || `crnrstn_ugc_search`.`ISACTIVE`="2");';
+											self::$MYSQLi_queryType = "SINGLET";
 											#self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search`;';
 										}else{
-											self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search` WHERE (`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`SUBJECT` LIKE "%'.$val.'%") AND `crnrstn_ugc_search`.`ISACTIVE`="2";';
+											self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search` WHERE (`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`SUBJECT` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`NOTE_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_ugc_search`.`ISACTIVE`="2";';
+											self::$MYSQLi_queryType = "SINGLET";
 											#self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search`;';
 										}	
 									}else{
 										if(strtolower($oUser->getReqParamByKey('FILTER'))=='code'){
-											self::$query .= 'SELECT `crnrstn_examples`.`TITLE`,`crnrstn_examples`.`DESCRIPTION`,`crnrstn_examples`.`URI` FROM `crnrstn_examples` WHERE `crnrstn_examples`.`TITLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`EXAMPLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';
+											self::$query .= 'SELECT `crnrstn_examples`.`TITLE`,`crnrstn_examples`.`DESCRIPTION`,`crnrstn_examples`.`URI` FROM `crnrstn_examples` WHERE (`crnrstn_examples`.`TITLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`EXAMPLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_examples`.`ISACTIVE`="1";';
+											self::$MYSQLi_queryType = "SINGLET";
+											//error_log("*******I SHOULD SAY SINGLET (220)******");
 										}else{
-											self::$query .= 'SELECT `crnrstn_class`.`NAME`,`crnrstn_class`.`DESCRIPTION`,`crnrstn_class`.`URI` FROM `crnrstn_class` WHERE `crnrstn_class`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_class`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';
-											self::$query .= 'SELECT `crnrstn_method`.`NAME`,`crnrstn_method`.`DESCRIPTION`,`crnrstn_method`.`URI` FROM `crnrstn_method` WHERE `crnrstn_method`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_method`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DEFINITION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`RETURNED_SEARCH` LIKE "%'.$val.'%";';									
-											self::$query .= 'SELECT `crnrstn_params`.`NAME`,`crnrstn_params`.`DESCRIPTION`,`crnrstn_params`.`URI` FROM `crnrstn_params` WHERE `crnrstn_params`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_params`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';
-											self::$query .= 'SELECT `crnrstn_techspecs`.`TECHSPEC_CONTENT`,`crnrstn_techspecs`.`URI` FROM `crnrstn_techspecs` WHERE `crnrstn_techspecs`.`TECHSPEC_SEARCH` LIKE "%'.$val.'%";';	
+											self::$query .= 'SELECT `crnrstn_class`.`NAME`,`crnrstn_class`.`DESCRIPTION`,`crnrstn_class`.`URI` FROM `crnrstn_class` WHERE (`crnrstn_class`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_class`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_class`.`ISACTIVE`="1";';
+											self::$query .= 'SELECT `crnrstn_method`.`NAME`,`crnrstn_method`.`DESCRIPTION`,`crnrstn_method`.`URI` FROM `crnrstn_method` WHERE (`crnrstn_method`.`NAME_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DEFINITION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`RETURNED_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_method`.`ISACTIVE`="1";';									
+											self::$query .= 'SELECT `crnrstn_params`.`NAME`,`crnrstn_params`.`DESCRIPTION`,`crnrstn_params`.`URI` FROM `crnrstn_params` WHERE (`crnrstn_params`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_params`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_params`.`ISACTIVE`="1";';
+											self::$query .= 'SELECT `crnrstn_techspecs`.`TECHSPEC_CONTENT`,`crnrstn_techspecs`.`URI` FROM `crnrstn_techspecs` WHERE `crnrstn_techspecs`.`TECHSPEC_SEARCH` LIKE "%'.$val.'%" AND `crnrstn_techspecs`.`ISACTIVE`="1";';	
 										}
 									}
 								}
@@ -369,38 +264,42 @@ class database_integration {
 							// CRNRSTN CONTENT :: RETURN ALL RESULTS
 							if(strtolower($oUser->getReqParamByKey('FILTER'))=='all' || $oUser->getReqParamByKey('FILTER')==''){
 							
-								self::$query .= 'SELECT `crnrstn_class`.`NAME`,`crnrstn_class`.`DESCRIPTION`,`crnrstn_class`.`URI` FROM `crnrstn_class` WHERE `crnrstn_class`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_class`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';
-								self::$query .= 'SELECT `crnrstn_method`.`NAME`,`crnrstn_method`.`DESCRIPTION`,`crnrstn_method`.`URI` FROM `crnrstn_method` WHERE `crnrstn_method`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_method`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DEFINITION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`RETURNED_SEARCH` LIKE "%'.$val.'%";';
-								self::$query .= 'SELECT `crnrstn_examples`.`TITLE`,`crnrstn_examples`.`DESCRIPTION`,`crnrstn_examples`.`URI` FROM `crnrstn_examples` WHERE `crnrstn_examples`.`TITLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`EXAMPLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';								
-								self::$query .= 'SELECT `crnrstn_params`.`NAME`,`crnrstn_params`.`DESCRIPTION`,`crnrstn_params`.`URI` FROM `crnrstn_params` WHERE `crnrstn_params`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_params`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';
-								self::$query .= 'SELECT `crnrstn_techspecs`.`TECHSPEC_CONTENT`,`crnrstn_techspecs`.`URI` FROM `crnrstn_techspecs` WHERE `crnrstn_techspecs`.`TECHSPEC_SEARCH` LIKE "%'.$val.'%";';
+								self::$query .= 'SELECT `crnrstn_class`.`NAME`,`crnrstn_class`.`DESCRIPTION`,`crnrstn_class`.`URI` FROM `crnrstn_class` WHERE (`crnrstn_class`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_class`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_class`.`ISACTIVE`="1";';
+								self::$query .= 'SELECT `crnrstn_method`.`NAME`,`crnrstn_method`.`DESCRIPTION`,`crnrstn_method`.`URI` FROM `crnrstn_method` WHERE (`crnrstn_method`.`NAME_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DEFINITION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`RETURNED_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_method`.`ISACTIVE`="1";';
+								self::$query .= 'SELECT `crnrstn_examples`.`TITLE`,`crnrstn_examples`.`DESCRIPTION`,`crnrstn_examples`.`URI` FROM `crnrstn_examples` WHERE (`crnrstn_examples`.`TITLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`EXAMPLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_examples`.`ISACTIVE`="1";';								
+								self::$query .= 'SELECT `crnrstn_params`.`NAME`,`crnrstn_params`.`DESCRIPTION`,`crnrstn_params`.`URI` FROM `crnrstn_params` WHERE (`crnrstn_params`.`NAME_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_params`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_params`.`ISACTIVE`="1";';
+								self::$query .= 'SELECT `crnrstn_techspecs`.`TECHSPEC_CONTENT`,`crnrstn_techspecs`.`URI` FROM `crnrstn_techspecs` WHERE `crnrstn_techspecs`.`TECHSPEC_SEARCH` LIKE "%'.$val.'%" AND `crnrstn_techspecs`.`ISACTIVE`="1";';
 							
 								//
 								// UGC CONTENT :: INTEGRATION OF PAGINATION INTO SQL?
 								if($oUser->getReqParamByKey('USERNAME')!=''){
-									self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search` WHERE (`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`SUBJECT` LIKE "%'.$val.'%") AND (`crnrstn_ugc_search`.`ISACTIVE`="1" || `crnrstn_ugc_search`.`ISACTIVE`="2");';
+									self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`, `crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search` WHERE (`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`SUBJECT` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`NOTE_SEARCH` LIKE "%'.$val.'%") AND (`crnrstn_ugc_search`.`ISACTIVE`="1" || `crnrstn_ugc_search`.`ISACTIVE`="2");';
 									#self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search`;';
 								}else{
-									self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search` WHERE (`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`SUBJECT` LIKE "%'.$val.'%") AND `crnrstn_ugc_search`.`ISACTIVE`="2";';
+									self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search` WHERE (`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`SUBJECT` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`NOTE_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_ugc_search`.`ISACTIVE`="2";';
 									#self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search`;';
 								}
 							}else{
 								if(strtolower($oUser->getReqParamByKey('FILTER'))=='ugc'){
 									if($oUser->getReqParamByKey('USERNAME')!=''){
-										self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search` WHERE (`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`SUBJECT` LIKE "%'.$val.'%") AND (`crnrstn_ugc_search`.`ISACTIVE`="1" || `crnrstn_ugc_search`.`ISACTIVE`="2");';
+										self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search` WHERE (`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`SUBJECT` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`NOTE_SEARCH` LIKE "%'.$val.'%") AND (`crnrstn_ugc_search`.`ISACTIVE`="1" || `crnrstn_ugc_search`.`ISACTIVE`="2");';
+										self::$MYSQLi_queryType = "SINGLET";
 										#self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search`;';
 									}else{
-										self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search` WHERE (`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`SUBJECT` LIKE "%'.$val.'%") AND `crnrstn_ugc_search`.`ISACTIVE`="2";';
+										self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search` WHERE (`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`SUBJECT` LIKE "%'.$val.'%" OR `crnrstn_ugc_search`.`NOTE_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_ugc_search`.`ISACTIVE`="2";';
+										self::$MYSQLi_queryType = "SINGLET";
 										#self::$query .= 'SELECT `crnrstn_ugc_search`.`NOTEID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH`,`crnrstn_ugc_search`.`SUBJECT`,`crnrstn_ugc_search`.`CLASSID_SOURCE`,`crnrstn_ugc_search`.`METHODID_SOURCE`,`crnrstn_ugc_search`.`NOTE_ELEM_SEARCH` FROM `crnrstn_ugc_search`;';
 									}	
 								}else{
 									if(strtolower($oUser->getReqParamByKey('FILTER'))=='code'){
-										self::$query .= 'SELECT `crnrstn_examples`.`TITLE`,`crnrstn_examples`.`DESCRIPTION`,`crnrstn_examples`.`URI` FROM `crnrstn_examples` WHERE `crnrstn_examples`.`TITLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`EXAMPLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';
+										self::$query .= 'SELECT `crnrstn_examples`.`TITLE`,`crnrstn_examples`.`DESCRIPTION`,`crnrstn_examples`.`URI` FROM `crnrstn_examples` WHERE (`crnrstn_examples`.`TITLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`EXAMPLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_examples`.`ISACTIVE`="1";';
+										self::$MYSQLi_queryType = "SINGLET";
+										//error_log("*******I SHOULD SAY SINGLET (269)******");
 									}else{
-										self::$query .= 'SELECT `crnrstn_class`.`NAME`,`crnrstn_class`.`DESCRIPTION`,`crnrstn_class`.`URI` FROM `crnrstn_class` WHERE `crnrstn_class`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_class`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';
-										self::$query .= 'SELECT `crnrstn_method`.`NAME`,`crnrstn_method`.`DESCRIPTION`,`crnrstn_method`.`URI` FROM `crnrstn_method` WHERE `crnrstn_method`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_method`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DEFINITION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`RETURNED_SEARCH` LIKE "%'.$val.'%";';									
-										self::$query .= 'SELECT `crnrstn_params`.`NAME`,`crnrstn_params`.`DESCRIPTION`,`crnrstn_params`.`URI` FROM `crnrstn_params` WHERE `crnrstn_params`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_params`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';
-										self::$query .= 'SELECT `crnrstn_techspecs`.`TECHSPEC_CONTENT`,`crnrstn_techspecs`.`URI` FROM `crnrstn_techspecs` WHERE `crnrstn_techspecs`.`TECHSPEC_SEARCH` LIKE "%'.$val.'%";';	
+										self::$query .= 'SELECT `crnrstn_class`.`NAME`,`crnrstn_class`.`DESCRIPTION`,`crnrstn_class`.`URI` FROM `crnrstn_class` WHERE (`crnrstn_class`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_class`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_class`.`ISACTIVE`="1";';
+										self::$query .= 'SELECT `crnrstn_method`.`NAME`,`crnrstn_method`.`DESCRIPTION`,`crnrstn_method`.`URI` FROM `crnrstn_method` WHERE (`crnrstn_method`.`NAME_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DEFINITION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`RETURNED_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_method`.`ISACTIVE`="1";';									
+										self::$query .= 'SELECT `crnrstn_params`.`NAME`,`crnrstn_params`.`DESCRIPTION`,`crnrstn_params`.`URI` FROM `crnrstn_params` WHERE (`crnrstn_params`.`NAME_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_params`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_params`.`ISACTIVE`="1";';
+										self::$query .= 'SELECT `crnrstn_techspecs`.`TECHSPEC_CONTENT`,`crnrstn_techspecs`.`URI` FROM `crnrstn_techspecs` WHERE `crnrstn_techspecs`.`TECHSPEC_SEARCH` LIKE "%'.$val.'%" AND `crnrstn_techspecs`.`ISACTIVE`="1";';	
 									}
 								}
 							}
@@ -409,34 +308,71 @@ class database_integration {
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
-					if($mysqli->error){
-						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+					//error_log("common/classes/database.inc.php (287) self::query->".self::$query);
 					
-					}else{
-						//
-						// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
-						$ROWCNT=0;
-						do {
-							if (self::$result = $mysqli->store_result()) {
+					switch(self::$MYSQLi_queryType){
+						case 'SINGLET':
+							self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+							if($mysqli->error){
+								throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+							
+							}else{
+								//
+								// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
+								//error_log("services /database.inc.php (291) about to process singlet...");
+								$ROWCNT=0;
 								while ($row = self::$result->fetch_row()) {
 									foreach($row as $fieldPos=>$value){
 										//
 										// STORE RESULT
+										//error_log("services /database.inc.php (296) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
 										self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
 										
 									}
 									$ROWCNT++;
 								}
 								self::$result->free();
+							
 							}
-					
-							if ($mysqli->more_results()) {
-								//
-								// END OF RECORD. MORE TO FOLLOW.
-							}
-						} while ($mysqli->next_result());
+							
+						break;
+						default:
 						
+							//error_log("services /database.inc.php (310) about to process multi...");
+							//self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+							$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+							if($mysqli->error){
+								throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+							
+							}else{
+								//
+								// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
+								$ROWCNT=0;
+								do {
+									if (self::$result = $mysqli->store_result()) {
+										while ($row = self::$result->fetch_row()) {
+											foreach($row as $fieldPos=>$value){
+												//
+												// STORE RESULT
+												self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+												
+											}
+											$ROWCNT++;
+										}
+										self::$result->free();
+									}
+							
+									if ($mysqli->more_results()) {
+										//
+										// END OF RECORD. MORE TO FOLLOW.
+									}
+								} while ($mysqli->next_result());
+							}
+		
+						break;
+					}
+					
+					
 						//
 						// CLOSE CONNECTION
 						$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);
@@ -444,10 +380,11 @@ class database_integration {
 						//
 						// RETURN RESULT SET ARRAY
 						return self::$result_ARRAY;
-					}
+					
 				
 				break;
 				case 'suggestsearch':
+					//error_log("database.inc.php (315) CASE: suggestsearch :: we are here...");
 					self::$query = '';
 					$skip_str_ARRAY = array('a', 'the', 'i', 'and', 'but');
 
@@ -464,28 +401,29 @@ class database_integration {
 						foreach($tmp_search_param_ARRAY as $key=>$val){
 							if(!in_array($val, $skip_str_ARRAY)){	
 								$val = $oUser->getReqParamByKey('SEARCH_PARAM_SEARCH');
-								self::$query .= 'SELECT `crnrstn_class`.`NAME`,`crnrstn_class`.`DESCRIPTION` FROM `crnrstn_class` WHERE `crnrstn_class`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_class`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';
-								self::$query .= 'SELECT `crnrstn_method`.`NAME`,`crnrstn_method`.`DESCRIPTION` FROM `crnrstn_method` WHERE `crnrstn_method`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_method`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DEFINITION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`RETURNED_SEARCH` LIKE "%'.$val.'%";';
-								self::$query .= 'SELECT `crnrstn_examples`.`TITLE`,`crnrstn_examples`.`DESCRIPTION` FROM `crnrstn_examples` WHERE `crnrstn_method`.`TITLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`EXAMPLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';
-								self::$query .= 'SELECT `crnrstn_params`.`NAME`,`crnrstn_params`.`DESCRIPTION` FROM `crnrstn_params` WHERE `crnrstn_method`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_method`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';
-								self::$query .= 'SELECT `crnrstn_techspecs`.`NAME` FROM `crnrstn_techspecs` WHERE `crnrstn_techspecs`.`TECHSPEC_SEARCH` LIKE "%'.$val.'%";';
+								self::$query .= 'SELECT `crnrstn_class`.`NAME`,`crnrstn_class`.`DESCRIPTION` FROM `crnrstn_class` WHERE (`crnrstn_class`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_class`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_class`.`ISACTIVE`="1";';
+								self::$query .= 'SELECT `crnrstn_method`.`NAME`,`crnrstn_method`.`DESCRIPTION` FROM `crnrstn_method` WHERE (`crnrstn_method`.`NAME_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DEFINITION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`RETURNED_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_method`.`ISACTIVE`="1";';
+								self::$query .= 'SELECT `crnrstn_examples`.`TITLE`,`crnrstn_examples`.`DESCRIPTION` FROM `crnrstn_examples` WHERE (`crnrstn_examples`.`TITLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`EXAMPLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_examples`.`ISACTIVE`="1";';
+								self::$query .= 'SELECT `crnrstn_params`.`NAME`,`crnrstn_params`.`DESCRIPTION` FROM `crnrstn_params` WHERE (`crnrstn_params`.`NAME_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_params`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%")  AND `crnrstn_params`.`ISACTIVE`="1";';
+								self::$query .= 'SELECT `crnrstn_techspecs`.`TECHSPEC_CONTENT` FROM `crnrstn_techspecs` WHERE `crnrstn_techspecs`.`TECHSPEC_SEARCH` LIKE "%'.$val.'%" AND `crnrstn_techspecs`.`ISACTIVE`="1";';
 							}
 						}
 					}else{
 						$val = $mysqli->real_escape_string($tmp_search_params);
 						if(!in_array($val, $skip_str_ARRAY)){
 							$val = $oUser->getReqParamByKey('SEARCH_PARAM_SEARCH');
-							self::$query .= 'SELECT `crnrstn_class`.`NAME`,`crnrstn_class`.`DESCRIPTION`,`crnrstn_class`.`URI` FROM `crnrstn_class` WHERE `crnrstn_class`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_class`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';
-							self::$query .= 'SELECT `crnrstn_method`.`NAME`,`crnrstn_method`.`DESCRIPTION` FROM `crnrstn_method` WHERE `crnrstn_method`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_method`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DEFINITION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`RETURNED_SEARCH` LIKE "%'.$val.'%";';
-							self::$query .= 'SELECT `crnrstn_examples`.`TITLE`,`crnrstn_examples`.`DESCRIPTION` FROM `crnrstn_examples` WHERE `crnrstn_method`.`TITLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`EXAMPLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';
-							self::$query .= 'SELECT `crnrstn_params`.`NAME`,`crnrstn_params`.`DESCRIPTION` FROM `crnrstn_params` WHERE `crnrstn_method`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_method`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%";';
-							self::$query .= 'SELECT `crnrstn_techspecs`.`NAME` FROM `crnrstn_techspecs` WHERE `crnrstn_techspecs`.`TECHSPEC_SEARCH` LIKE "%'.$val.'%";';
+							self::$query .= 'SELECT `crnrstn_class`.`NAME`,`crnrstn_class`.`DESCRIPTION`,`crnrstn_class`.`URI` FROM `crnrstn_class` WHERE (`crnrstn_class`.`NAME` LIKE "%'.$val.'%" OR `crnrstn_class`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_class`.`ISACTIVE`="1";';
+							self::$query .= 'SELECT `crnrstn_method`.`NAME`,`crnrstn_method`.`DESCRIPTION` FROM `crnrstn_method` WHERE (`crnrstn_method`.`NAME_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`DEFINITION_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_method`.`RETURNED_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_method`.`ISACTIVE`="1";';
+							self::$query .= 'SELECT `crnrstn_examples`.`TITLE`,`crnrstn_examples`.`DESCRIPTION` FROM `crnrstn_examples` WHERE (`crnrstn_examples`.`TITLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`EXAMPLE_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_examples`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_examples`.`ISACTIVE`="1";';
+							self::$query .= 'SELECT `crnrstn_params`.`NAME`,`crnrstn_params`.`DESCRIPTION` FROM `crnrstn_params` WHERE (`crnrstn_params`.`NAME_SEARCH` LIKE "%'.$val.'%" OR `crnrstn_params`.`DESCRIPTION_SEARCH` LIKE "%'.$val.'%") AND `crnrstn_params`.`ISACTIVE`="1";';
+							self::$query .= 'SELECT `crnrstn_techspecs`.`TECHSPEC_CONTENT` FROM `crnrstn_techspecs` WHERE `crnrstn_techspecs`.`TECHSPEC_SEARCH` LIKE "%'.$val.'%" AND `crnrstn_techspecs`.`ISACTIVE`="1";';
 						}
 					}
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					//error_log("common/classes/database.inc.php (428) self::query->".self::$query);
+					$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
 					if($mysqli->error){
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
 					
@@ -499,6 +437,7 @@ class database_integration {
 									foreach($row as $fieldPos=>$value){
 										//
 										// STORE RESULT
+										//error_log("services /database.inc.php (444) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
 										self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
 										
 									}
@@ -546,45 +485,40 @@ class database_integration {
 					if(strlen($oUser->getReqParamByKey('USERNAME'))>4){
 						//
 						// APPEND COMMENT DATA
-						$dyn_tble_comments = '';
-						$dyn_tble_users = '';
-						$dyn_tble_comments = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('CLASSID')).'_comments';
-						$dyn_tble_users = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('CLASSID')).'_users';
+						$dyn_tbl_notes = '';
+						$dyn_tbl_users = '';
+						$dyn_tbl_notes = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('CLASSID')).'_notes';
+						$dyn_tbl_users = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('CLASSID')).'_users';
+						$dyn_tbl_likes = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('CLASSID')).'_likes';
 						
-						self::$query .= 'SELECT `'.$dyn_tble_comments.'`.`NOTEID_SOURCE`,`'.$dyn_tble_comments.'`.`USERNAME`,`'.$dyn_tble_comments.'`.`REPLYTO_NOTEID`,`'.$dyn_tble_comments.'`.`SUBJECT`,`'.$dyn_tble_comments.'`.`NOTE_STYLED`,`'.$dyn_tble_comments.'`.`NOTE_ELEM_TT`,`'.$dyn_tble_comments.'`.`LANGCODE`,`'.$dyn_tble_comments.'`.`DATEMODIFIED`,`'.$dyn_tble_comments.'`.`DATECREATED`,`'.$dyn_tble_users.'`.`USERID_SOURCE`,`'.$dyn_tble_users.'`.`USERNAME_DISPLAY`,`'.$dyn_tble_users.'`.`IMAGE_NAME`,`'.$dyn_tble_users.'`.`IMAGE_WIDTH`,`'.$dyn_tble_users.'`.`IMAGE_HEIGHT`,`'.$dyn_tble_users.'`.`EXTERNAL_URI_FORMATTED` FROM `'.$dyn_tble_comments.'` LEFT OUTER JOIN `'.$dyn_tble_users.'` ON `'.$dyn_tble_comments.'`.`USERNAME` = `'.$dyn_tble_users.'`.`USERNAME` WHERE `'.$dyn_tble_comments.'`.`ISACTIVE`="1" ORDER BY `'.$dyn_tble_comments.'`.`DATECREATED` DESC LIMIT '.$tmp_indexStart.','.$oUser->getReqParamByKey('INDEXSIZE').';';
-						self::$query .= 'SELECT COUNT(*) AS INDEXTOTAL FROM `'.$dyn_tble_comments.'` WHERE `'.$dyn_tble_comments.'`.`ISACTIVE`="1";';
+						self::$query .= 'SELECT `'.$dyn_tbl_notes.'`.`NOTEID_SOURCE`,`'.$dyn_tbl_notes.'`.`USERNAME`,`'.$dyn_tbl_notes.'`.`ISACTIVE`,`'.$dyn_tbl_notes.'`.`REPLYTO_NOTEID`,`'.$dyn_tbl_notes.'`.`SUBJECT`,`'.$dyn_tbl_notes.'`.`NOTE_STYLED`,`'.$dyn_tbl_notes.'`.`NOTE_ELEM_TT`,`'.$dyn_tbl_notes.'`.`LANGCODE`,`'.$dyn_tbl_notes.'`.`DATEMODIFIED`,`'.$dyn_tbl_notes.'`.`DATECREATED`,`'.$dyn_tbl_users.'`.`USERID_SOURCE`,`'.$dyn_tbl_users.'`.`USERNAME_DISPLAY`,`'.$dyn_tbl_users.'`.`IMAGE_NAME`,`'.$dyn_tbl_users.'`.`IMAGE_WIDTH`,`'.$dyn_tbl_users.'`.`IMAGE_HEIGHT`,`'.$dyn_tbl_users.'`.`EXTERNAL_URI_FORMATTED` FROM `'.$dyn_tbl_notes.'` LEFT OUTER JOIN `'.$dyn_tbl_users.'` ON `'.$dyn_tbl_notes.'`.`USERNAME` = `'.$dyn_tbl_users.'`.`USERNAME` WHERE `'.$dyn_tbl_notes.'`.`ISACTIVE`!="0" ORDER BY `'.$dyn_tbl_notes.'`.`DATECREATED` DESC LIMIT '.$tmp_indexStart.','.$oUser->getReqParamByKey('INDEXSIZE').';';
+						self::$query .= 'SELECT `'.$dyn_tbl_likes.'`.`ID`,`'.$dyn_tbl_likes.'`.`NOTEID_SOURCE`,`'.$dyn_tbl_likes.'`.`USERNAME` FROM `'.$dyn_tbl_likes.'` WHERE USERNAME="'.$oUser->getReqParamByKey('USERNAME').'" AND USERNAME_CRC32="'.crc32($oUser->getReqParamByKey('USERNAME')).'" AND ISACTIVE="1" ORDER BY ID DESC;';
+						self::$query .= 'SELECT COUNT(*) AS INDEXTOTAL FROM `'.$dyn_tbl_notes.'` WHERE `'.$dyn_tbl_notes.'`.`ISACTIVE`!="0";';
 						
 					}else{
 						//
-						// APPEND COMMENT DATA [DO NOT PULL. XML ONLY.]
-//						$dyn_tble_comments = '';
-//						$dyn_tble_users = '';
-//						$dyn_tble_comments = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('CLASSID')).'_comments';
-//						$dyn_tble_users = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('CLASSID')).'_users';
-//						
-//						self::$query .= 'SELECT `'.$dyn_tble_comments.'`.`NOTEID_SOURCE`,`'.$dyn_tble_comments.'`.`USERNAME`, 
-//						`'.$dyn_tble_comments.'`.`REPLYTO_NOTEID`, 
-//						`'.$dyn_tble_comments.'`.`SUBJECT`,`'.$dyn_tble_comments.'`.`NOTE_STYLED`, 
-//						`'.$dyn_tble_comments.'`.`NOTE_ELEM_TT`,`'.$dyn_tble_comments.'`.`LANGCODE`, 
-//						`'.$dyn_tble_comments.'`.`DATEMODIFIED`,`'.$dyn_tble_comments.'`.`DATECREATED`, 
-//						`'.$dyn_tble_users.'`.`USERID_SOURCE`,`'.$dyn_tble_users.'`.`USERNAME_DISPLAY`,
-//						`'.$dyn_tble_users.'`.`IMAGE_NAME`,`'.$dyn_tble_users.'`.`IMAGE_WIDTH`,
-//						`'.$dyn_tble_users.'`.`IMAGE_HEIGHT`,
-//						`'.$dyn_tble_users.'`.`EXTERNAL_URI_FORMATTED`
-//						FROM `'.$dyn_tble_comments.'` 
-//						LEFT OUTER JOIN `'.$dyn_tble_users.'` ON `'.$dyn_tble_comments.'`.`USERNAME` = `'.$dyn_tble_users.'`.`USERNAME` 
-//						WHERE `'.$dyn_tble_comments.'`.`ISACTIVE`="2" ORDER BY `'.$dyn_tble_comments.'`.`DATECREATED` DESC LIMIT '.$tmp_indexStart.','.$oUser->getReqParamByKey('INDEXSIZE').';
-//						';
-//						
-//						self::$query .= 'SELECT COUNT(*) AS INDEXTOTAL FROM `'.$dyn_tble_comments.'` 
-//						WHERE `'.$dyn_tble_comments.'`.`ISACTIVE`="2";
-//						';
+						// APPEND COMMENT DATA [DO NOT PULL. XML ONLY. NEVERMIND. PULL IT.]
+						$dyn_tbl_notes = '';
+						$dyn_tbl_users = '';
+						$dyn_tbl_notes = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('CLASSID')).'_notes';
+						$dyn_tbl_users = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('CLASSID')).'_users';
+						
+						self::$query .= 'SELECT `'.$dyn_tbl_notes.'`.`NOTEID_SOURCE`,`'.$dyn_tbl_notes.'`.`USERNAME`,`'.$dyn_tbl_notes.'`.`ISACTIVE`,`'.$dyn_tbl_notes.'`.`REPLYTO_NOTEID`,`'.$dyn_tbl_notes.'`.`SUBJECT`,`'.$dyn_tbl_notes.'`.`NOTE_STYLED`,`'.$dyn_tbl_notes.'`.`NOTE_ELEM_TT`,`'.$dyn_tbl_notes.'`.`LANGCODE`,`'.$dyn_tbl_notes.'`.`DATEMODIFIED`,`'.$dyn_tbl_notes.'`.`DATECREATED`,`'.$dyn_tbl_users.'`.`USERID_SOURCE`,`'.$dyn_tbl_users.'`.`USERNAME_DISPLAY`,`'.$dyn_tbl_users.'`.`IMAGE_NAME`,`'.$dyn_tbl_users.'`.`IMAGE_WIDTH`,`'.$dyn_tbl_users.'`.`IMAGE_HEIGHT`,`'.$dyn_tbl_users.'`.`EXTERNAL_URI_FORMATTED`
+						FROM `'.$dyn_tbl_notes.'` 
+						LEFT OUTER JOIN `'.$dyn_tbl_users.'` ON `'.$dyn_tbl_notes.'`.`USERNAME` = `'.$dyn_tbl_users.'`.`USERNAME` 
+						WHERE `'.$dyn_tbl_notes.'`.`ISACTIVE`="2" ORDER BY `'.$dyn_tbl_notes.'`.`DATECREATED` DESC LIMIT '.$tmp_indexStart.','.$oUser->getReqParamByKey('INDEXSIZE').';
+						';
+						
+						self::$query .= 'SELECT COUNT(*) AS INDEXTOTAL FROM `'.$dyn_tbl_notes.'` 
+						WHERE `'.$dyn_tbl_notes.'`.`ISACTIVE`="2";
+						';
 						
 					}
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					//error_log("services database.inc.php (557) query->".self::$query);
+					$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
 					if($mysqli->error){
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
 					
@@ -611,6 +545,7 @@ class database_integration {
 								// END OF RECORD. MORE TO FOLLOW.
 							}
 						} while ($mysqli->next_result());
+
 						
 						//
 						// CLOSE CONNECTION
@@ -627,10 +562,7 @@ class database_integration {
 					//
 					// BUILD QUERY
 					if($queryType!='svc_getMethodComments'){
-						self::$query = 'SELECT `crnrstn_method`.`NAME`,`crnrstn_method`.`DESCRIPTION`,`crnrstn_method`.`DEFINITION`,`crnrstn_method`.`RETURNED_VALUE`,`crnrstn_method`.`URI`,`crnrstn_method`.`LANGCODE`,`crnrstn_method`.`DATEMODIFIED`,`crnrstn_params`.`PARAMETERID_SOURCE`,`crnrstn_params`.`NAME`,`crnrstn_params`.`ISREQUIRED`,`crnrstn_params`.`DESCRIPTION`,`crnrstn_params`.`LANGCODE`,`crnrstn_params`.`ISACTIVE`,
-						
-						`crnrstn_params`.`DATEMODIFIED`,`crnrstn_params`.`POSITION`,
-						`crnrstn_techspecs`.`TECHSPECID_SOURCE`,`crnrstn_techspecs`.`TECHSPEC_CONTENT`,`crnrstn_techspecs`.`LANGCODE`,`crnrstn_techspecs`.`DATEMODIFIED`,`crnrstn_techspecs`.`ISACTIVE`,`crnrstn_examples`.`EXAMPLEID_SOURCE`,`crnrstn_examples`.`TITLE`,`crnrstn_examples`.`DESCRIPTION`,`crnrstn_examples`.`EXAMPLE_FORMATTED`,`crnrstn_examples`.`EXAMPLE_RAW`,`crnrstn_examples`.`EXAMPLE_ELEM_TT`,`crnrstn_examples`.`LANGCODE`,`crnrstn_examples`.`ISACTIVE`,`crnrstn_examples`.`DATEMODIFIED`,`crnrstn_class`.`NAME` FROM ((((`crnrstn_method` LEFT OUTER JOIN `crnrstn_techspecs` ON `crnrstn_method`.`METHODID` = `crnrstn_techspecs`.`METHODID`) LEFT OUTER JOIN `crnrstn_params` ON `crnrstn_method`.`METHODID` = `crnrstn_params`.`METHODID`) LEFT OUTER JOIN `crnrstn_examples` ON `crnrstn_method`.`METHODID` = `crnrstn_examples`.`METHODID`) LEFT OUTER JOIN `crnrstn_class` ON `crnrstn_method`.`CLASSID` = `crnrstn_class`.`CLASSID`) WHERE `crnrstn_method`.`METHODID`="'.crc32($oUser->getReqParamByKey('METHODID')).'" AND `crnrstn_method`.`METHODID_SOURCE`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('METHODID')).'" AND `crnrstn_method`.`ISACTIVE`="1";';
+						self::$query = 'SELECT `crnrstn_method`.`NAME`,`crnrstn_method`.`DESCRIPTION`,`crnrstn_method`.`DEFINITION`,`crnrstn_method`.`RETURNED_VALUE`,`crnrstn_method`.`URI`,`crnrstn_method`.`LANGCODE`,`crnrstn_method`.`DATEMODIFIED`,`crnrstn_params`.`PARAMETERID_SOURCE`,`crnrstn_params`.`NAME`,`crnrstn_params`.`ISREQUIRED`,`crnrstn_params`.`DESCRIPTION`,`crnrstn_params`.`LANGCODE`,`crnrstn_params`.`ISACTIVE`,`crnrstn_params`.`DATEMODIFIED`,`crnrstn_params`.`POSITION`,`crnrstn_techspecs`.`TECHSPECID_SOURCE`,`crnrstn_techspecs`.`TECHSPEC_CONTENT`,`crnrstn_techspecs`.`LANGCODE`,`crnrstn_techspecs`.`DATEMODIFIED`,`crnrstn_techspecs`.`ISACTIVE`,`crnrstn_examples`.`EXAMPLEID_SOURCE`,`crnrstn_examples`.`TITLE`,`crnrstn_examples`.`DESCRIPTION`,`crnrstn_examples`.`EXAMPLE_FORMATTED`,`crnrstn_examples`.`EXAMPLE_RAW`,`crnrstn_examples`.`EXAMPLE_ELEM_TT`,`crnrstn_examples`.`LANGCODE`,`crnrstn_examples`.`ISACTIVE`,`crnrstn_examples`.`DATEMODIFIED`,`crnrstn_class`.`NAME` FROM ((((`crnrstn_method` LEFT OUTER JOIN `crnrstn_techspecs` ON `crnrstn_method`.`METHODID` = `crnrstn_techspecs`.`METHODID`) LEFT OUTER JOIN `crnrstn_params` ON `crnrstn_method`.`METHODID` = `crnrstn_params`.`METHODID`) LEFT OUTER JOIN `crnrstn_examples` ON `crnrstn_method`.`METHODID` = `crnrstn_examples`.`METHODID`) LEFT OUTER JOIN `crnrstn_class` ON `crnrstn_method`.`CLASSID` = `crnrstn_class`.`CLASSID`) WHERE `crnrstn_method`.`METHODID`="'.crc32($oUser->getReqParamByKey('METHODID')).'" AND `crnrstn_method`.`METHODID_SOURCE`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('METHODID')).'" AND `crnrstn_method`.`ISACTIVE`="1" ORDER BY `crnrstn_params`.`POSITION` ASC;';
 					}
 										
 					//
@@ -643,44 +575,39 @@ class database_integration {
 					if(strlen($oUser->getReqParamByKey('USERNAME'))>4){
 						//
 						// APPEND COMMENT DATA
-						$dyn_tble_comments = '';
-						$dyn_tble_users = '';
-						$dyn_tble_comments = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('METHODID')).'_comments';
-						$dyn_tble_users = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('METHODID')).'_users';
+						$dyn_tbl_notes = '';
+						$dyn_tbl_users = '';
+						$dyn_tbl_notes = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('METHODID')).'_notes';
+						$dyn_tbl_users = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('METHODID')).'_users';
+						$dyn_tbl_likes = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('METHODID')).'_likes';
 						
-						self::$query .= 'SELECT `'.$dyn_tble_comments.'`.`NOTEID_SOURCE`,`'.$dyn_tble_comments.'`.`USERNAME`,`'.$dyn_tble_comments.'`.`REPLYTO_NOTEID`,`'.$dyn_tble_comments.'`.`SUBJECT`,`'.$dyn_tble_comments.'`.`NOTE_STYLED`,`'.$dyn_tble_comments.'`.`NOTE_ELEM_TT`,`'.$dyn_tble_comments.'`.`LANGCODE`,`'.$dyn_tble_comments.'`.`DATEMODIFIED`,`'.$dyn_tble_comments.'`.`DATECREATED`,`'.$dyn_tble_users.'`.`USERID_SOURCE`,`'.$dyn_tble_users.'`.`USERNAME_DISPLAY`,`'.$dyn_tble_users.'`.`IMAGE_NAME`,`'.$dyn_tble_users.'`.`IMAGE_WIDTH`,`'.$dyn_tble_users.'`.`IMAGE_HEIGHT`,`'.$dyn_tble_users.'`.`EXTERNAL_URI_FORMATTED` FROM `'.$dyn_tble_comments.'` LEFT OUTER JOIN `'.$dyn_tble_users.'` ON `'.$dyn_tble_comments.'`.`USERNAME` = `'.$dyn_tble_users.'`.`USERNAME` WHERE `'.$dyn_tble_comments.'`.`ISACTIVE`="1" ORDER BY `'.$dyn_tble_comments.'`.`DATECREATED` DESC LIMIT '.$tmp_indexStart.','.$oUser->getReqParamByKey('INDEXSIZE').';';
-						self::$query .= 'SELECT COUNT(*) AS INDEXTOTAL FROM `'.$dyn_tble_comments.'` WHERE `'.$dyn_tble_comments.'`.`ISACTIVE`="1";';
+						self::$query .= 'SELECT `'.$dyn_tbl_notes.'`.`NOTEID_SOURCE`,`'.$dyn_tbl_notes.'`.`USERNAME`,`'.$dyn_tbl_notes.'`.`ISACTIVE`,`'.$dyn_tbl_notes.'`.`REPLYTO_NOTEID`,`'.$dyn_tbl_notes.'`.`SUBJECT`,`'.$dyn_tbl_notes.'`.`NOTE_STYLED`,`'.$dyn_tbl_notes.'`.`NOTE_ELEM_TT`,`'.$dyn_tbl_notes.'`.`LANGCODE`,`'.$dyn_tbl_notes.'`.`DATEMODIFIED`,`'.$dyn_tbl_notes.'`.`DATECREATED`,`'.$dyn_tbl_users.'`.`USERID_SOURCE`,`'.$dyn_tbl_users.'`.`USERNAME_DISPLAY`,`'.$dyn_tbl_users.'`.`IMAGE_NAME`,`'.$dyn_tbl_users.'`.`IMAGE_WIDTH`,`'.$dyn_tbl_users.'`.`IMAGE_HEIGHT`,`'.$dyn_tbl_users.'`.`EXTERNAL_URI_FORMATTED` FROM `'.$dyn_tbl_notes.'` LEFT OUTER JOIN `'.$dyn_tbl_users.'` ON `'.$dyn_tbl_notes.'`.`USERNAME` = `'.$dyn_tbl_users.'`.`USERNAME` WHERE `'.$dyn_tbl_notes.'`.`ISACTIVE`!="0" ORDER BY `'.$dyn_tbl_notes.'`.`DATECREATED` DESC LIMIT '.$tmp_indexStart.','.$oUser->getReqParamByKey('INDEXSIZE').';';
+						self::$query .= 'SELECT `'.$dyn_tbl_likes.'`.`ID`,`'.$dyn_tbl_likes.'`.`NOTEID_SOURCE`,`'.$dyn_tbl_likes.'`.`USERNAME` FROM `'.$dyn_tbl_likes.'` WHERE USERNAME="'.$oUser->getReqParamByKey('USERNAME').'" AND USERNAME_CRC32="'.crc32($oUser->getReqParamByKey('USERNAME')).'" AND ISACTIVE="1";';
+						self::$query .= 'SELECT COUNT(*) AS INDEXTOTAL FROM `'.$dyn_tbl_notes.'` WHERE `'.$dyn_tbl_notes.'`.`ISACTIVE`!="0";';
 						
 					}else{
 						//
-						// APPEND COMMENT DATA [DO NOT PULL. XML ONLY.]
-//						$dyn_tble_comments = '';
-//						$dyn_tble_users = '';
-//						$dyn_tble_comments = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('METHODID')).'_comments';
-//						$dyn_tble_users = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('METHODID')).'_users';
-//						
-//						self::$query .= 'SELECT `'.$dyn_tble_comments.'`.`NOTEID_SOURCE`,`'.$dyn_tble_comments.'`.`USERNAME`, 
-//						`'.$dyn_tble_comments.'`.`REPLYTO_NOTEID`, 
-//						`'.$dyn_tble_comments.'`.`SUBJECT`,`'.$dyn_tble_comments.'`.`NOTE_STYLED`, 
-//						`'.$dyn_tble_comments.'`.`NOTE_ELEM_TT`,`'.$dyn_tble_comments.'`.`LANGCODE`, 
-//						`'.$dyn_tble_comments.'`.`DATEMODIFIED`,`'.$dyn_tble_comments.'`.`DATECREATED`, 
-//						`'.$dyn_tble_users.'`.`USERID_SOURCE`,`'.$dyn_tble_users.'`.`USERNAME_DISPLAY`,
-//						`'.$dyn_tble_users.'`.`IMAGE_NAME`,`'.$dyn_tble_users.'`.`IMAGE_WIDTH`,
-//						`'.$dyn_tble_users.'`.`IMAGE_HEIGHT`,
-//						`'.$dyn_tble_users.'`.`EXTERNAL_URI_FORMATTED`
-//						FROM `'.$dyn_tble_comments.'` 
-//						LEFT OUTER JOIN `'.$dyn_tble_users.'` ON `'.$dyn_tble_comments.'`.`USERNAME` = `'.$dyn_tble_users.'`.`USERNAME` 
-//						WHERE `'.$dyn_tble_comments.'`.`ISACTIVE`="2" ORDER BY `'.$dyn_tble_comments.'`.`DATECREATED` DESC LIMIT '.$tmp_indexStart.','.$oUser->getReqParamByKey('INDEXSIZE').';
-//						';
-//						
-//						self::$query .= 'SELECT COUNT(*) AS INDEXTOTAL FROM `'.$dyn_tble_comments.'` 
-//						WHERE `'.$dyn_tble_comments.'`.`ISACTIVE`="2";
-//						';
+						// APPEND COMMENT DATA [DO NOT PULL. XML ONLY. NEVERMIND. PULL IT.]
+						$dyn_tbl_notes = '';
+						$dyn_tbl_users = '';
+						$dyn_tbl_notes = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('METHODID')).'_notes';
+						$dyn_tbl_users = 'crnrstn_'.$mysqli->real_escape_string($oUser->getReqParamByKey('METHODID')).'_users';
+						
+						self::$query .= 'SELECT `'.$dyn_tbl_notes.'`.`NOTEID_SOURCE`,`'.$dyn_tbl_notes.'`.`USERNAME`,`'.$dyn_tbl_notes.'`.`ISACTIVE`,`'.$dyn_tbl_notes.'`.`REPLYTO_NOTEID`,`'.$dyn_tbl_notes.'`.`SUBJECT`,`'.$dyn_tbl_notes.'`.`NOTE_STYLED`,`'.$dyn_tbl_notes.'`.`NOTE_ELEM_TT`,`'.$dyn_tbl_notes.'`.`LANGCODE`,`'.$dyn_tbl_notes.'`.`DATEMODIFIED`,`'.$dyn_tbl_notes.'`.`DATECREATED`,`'.$dyn_tbl_users.'`.`USERID_SOURCE`,`'.$dyn_tbl_users.'`.`USERNAME_DISPLAY`,`'.$dyn_tbl_users.'`.`IMAGE_NAME`,`'.$dyn_tbl_users.'`.`IMAGE_WIDTH`,`'.$dyn_tbl_users.'`.`IMAGE_HEIGHT`,`'.$dyn_tbl_users.'`.`EXTERNAL_URI_FORMATTED`
+						FROM `'.$dyn_tbl_notes.'` 
+						LEFT OUTER JOIN `'.$dyn_tbl_users.'` ON `'.$dyn_tbl_notes.'`.`USERNAME` = `'.$dyn_tbl_users.'`.`USERNAME` 
+						WHERE `'.$dyn_tbl_notes.'`.`ISACTIVE`="2" ORDER BY `'.$dyn_tbl_notes.'`.`DATECREATED` DESC LIMIT '.$tmp_indexStart.','.$oUser->getReqParamByKey('INDEXSIZE').';
+						';
+						
+						self::$query .= 'SELECT COUNT(*) AS INDEXTOTAL FROM `'.$dyn_tbl_notes.'` 
+						WHERE `'.$dyn_tbl_notes.'`.`ISACTIVE`="2";
+						';
 					}
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					//error_log("(609) DO I GET ORDER WITH YOU? ->".self::$query);
+					$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
 					if($mysqli->error){
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
 					
@@ -724,7 +651,7 @@ class database_integration {
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
 					if($mysqli->error){
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
 					
@@ -732,25 +659,38 @@ class database_integration {
 						//
 						// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
 						$ROWCNT=0;
-						do {
-							if (self::$result = $mysqli->store_result()) {
-								while ($row = self::$result->fetch_row()) {
-									foreach($row as $fieldPos=>$value){
-										//
-										// STORE RESULT
-										self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
-										
-									}
-									$ROWCNT++;
+						if($oUserEnvironment->getEnvParam("SERVER_NAME")=="services.crnrstn.jony5.com"){
+
+							//
+							// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
+							while ($row = self::$result->fetch_row()) {
+								foreach($row as $fieldPos=>$value){
+									//
+									// STORE RESULT
+									//error_log("services /database.inc.php (296) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
+									self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+									
 								}
-								self::$result->free();
+								$ROWCNT++;
 							}
-					
-							if ($mysqli->more_results()) {
-								//
-								// END OF RECORD. MORE TO FOLLOW.
+							self::$result->free();
+							
+
+						}else{
+							//
+							// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
+							while ($row = self::$result->fetch_row()) {
+								foreach($row as $fieldPos=>$value){
+									//
+									// STORE RESULT
+									//error_log("services /database.inc.php (296) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
+									self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+									
+								}
+								$ROWCNT++;
 							}
-						} while ($mysqli->next_result());
+							self::$result->free();
+						}
 						
 						//
 						// CLOSE CONNECTION
@@ -765,11 +705,11 @@ class database_integration {
 				case 'svc_getToolTip':
 					//
 					// BUILD QUERY
-					self::$query = 'SELECT `code_element_define`.`ELEMENTID_SOURCE`,`code_element_define`.`ELEM_TYPEID_SOURCE`,`code_element_define`.`NAME`,`code_element_define`.`PHP_VERSION`,`code_element_define`.`DESCRIPTION_SHORT`,`code_element_define`.`DESCRIPTION_FULL`,`code_element_define`.`RELATED_FUNC_LIST`,`code_element_define`.`LANGCODE`,`code_element_define`.`ISACTIVE` FROM `code_element_define` WHERE `code_element_define`.`ELEMENTID`="'.crc32($oUser->getReqParam('ELEMENTID')).'" AND `code_element_define`.`ELEMENTID_SOURCE`="'.$mysqli->real_escape_string($oUser->getReqParam('ELEMENTID')).'" LIMIT 1;';
+					self::$query = 'SELECT `code_element_define`.`ELEMENTID_SOURCE`,`code_element_define`.`ELEM_TYPEID_SOURCE`,`code_element_define`.`NAME`,`code_element_define`.`PHP_VERSION`,`code_element_define`.`DESCRIPTION_SHORT`,`code_element_define`.`DESCRIPTION_FULL`,`code_element_define`.`RELATED_FUNC_LIST`,`code_element_define`.`MORE_URL`,`code_element_define`.`LANGCODE`,`code_element_define`.`ISACTIVE` FROM `code_element_define` WHERE `code_element_define`.`ELEMENTID`="'.crc32($oUser->getReqParam('ELEMENTID')).'" AND `code_element_define`.`ELEMENTID_SOURCE`="'.$mysqli->real_escape_string($oUser->getReqParam('ELEMENTID')).'" LIMIT 1;';
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
 					if($mysqli->error){
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
 					
@@ -777,25 +717,36 @@ class database_integration {
 						//
 						// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
 						$ROWCNT=0;
-						do {
-							if (self::$result = $mysqli->store_result()) {
-								while ($row = self::$result->fetch_row()) {
-									foreach($row as $fieldPos=>$value){
-										//
-										// STORE RESULT
-										self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
-										
-									}
-									$ROWCNT++;
+						if($oUserEnvironment->getEnvParam("SERVER_NAME")=="services.crnrstn.jony5.com"){
+							//
+							// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
+							while ($row = self::$result->fetch_row()) {
+								foreach($row as $fieldPos=>$value){
+									//
+									// STORE RESULT
+									//error_log("services /database.inc.php (296) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
+									self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+									
 								}
-								self::$result->free();
+								$ROWCNT++;
 							}
-					
-							if ($mysqli->more_results()) {
-								//
-								// END OF RECORD. MORE TO FOLLOW.
+							self::$result->free();
+
+						}else{
+							//
+							// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
+							while ($row = self::$result->fetch_row()) {
+								foreach($row as $fieldPos=>$value){
+									//
+									// STORE RESULT
+									//error_log("services /database.inc.php (296) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
+									self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+									
+								}
+								$ROWCNT++;
 							}
-						} while ($mysqli->next_result());
+							self::$result->free();
+						}
 						
 						//
 						// CLOSE CONNECTION
@@ -820,7 +771,7 @@ class database_integration {
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
 					if($mysqli->error){
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
 					
@@ -828,25 +779,17 @@ class database_integration {
 						//
 						// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
 						$ROWCNT=0;
-						do {
-							if (self::$result = $mysqli->store_result()) {
-								while ($row = self::$result->fetch_row()) {
-									foreach($row as $fieldPos=>$value){
-										//
-										// STORE RESULT
-										self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
-										
-									}
-									$ROWCNT++;
-								}
-								self::$result->free();
-							}
-					
-							if ($mysqli->more_results()) {
+						while ($row = self::$result->fetch_row()) {
+							foreach($row as $fieldPos=>$value){
 								//
-								// END OF RECORD. MORE TO FOLLOW.
+								// STORE RESULT
+								//error_log("services /database.inc.php (296) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
+								self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+								
 							}
-						} while ($mysqli->next_result());
+							$ROWCNT++;
+						}
+						self::$result->free();
 						
 						//
 						// CLOSE CONNECTION
@@ -862,18 +805,18 @@ class database_integration {
 					
 					//
 					// APPEND COMMENT DATA
-					$dyn_tble_comments = '';
-					$dyn_tble_users = '';
-					$dyn_tble_comments = 'crnrstn_'.$mysqli->real_escape_string($oUser->returnCommentParam('PAGE_ELEMENT_ID')).'_comments';
-					$dyn_tble_users = 'crnrstn_'.$mysqli->real_escape_string($oUser->returnCommentParam('PAGE_ELEMENT_ID')).'_users';
+					$dyn_tbl_notes = '';
+					$dyn_tbl_users = '';
+					$dyn_tbl_notes = 'crnrstn_'.$mysqli->real_escape_string($oUser->returnCommentParam('PAGE_ELEMENT_ID')).'_notes';
+					$dyn_tbl_users = 'crnrstn_'.$mysqli->real_escape_string($oUser->returnCommentParam('PAGE_ELEMENT_ID')).'_users';
 
 					//
 					// BUILD QUERY
-					self::$query = 'SELECT `'.$dyn_tble_comments.'`.`NOTEID_SOURCE`,`'.$dyn_tble_comments.'`.`USERNAME`,`'.$dyn_tble_comments.'`.`REPLYTO_NOTEID`,`'.$dyn_tble_comments.'`.`SUBJECT`,`'.$dyn_tble_comments.'`.`NOTE_STYLED`,`'.$dyn_tble_comments.'`.`NOTE_RAW`,`'.$dyn_tble_comments.'`.`NOTE_ELEM_TT`,`'.$dyn_tble_comments.'`.`STYLED_CHAR_CNT`,`'.$dyn_tble_comments.'`.`RAW_CHAR_CNT`,`'.$dyn_tble_comments.'`.`LANGCODE`,`'.$dyn_tble_comments.'`.`DATEMODIFIED`,`'.$dyn_tble_comments.'`.`DATECREATED`,`'.$dyn_tble_users.'`.`USERID_SOURCE`,`'.$dyn_tble_users.'`.`USERNAME_DISPLAY`,`'.$dyn_tble_users.'`.`IMAGE_NAME`,`'.$dyn_tble_users.'`.`IMAGE_WIDTH`,`'.$dyn_tble_users.'`.`IMAGE_HEIGHT`,`'.$dyn_tble_users.'`.`EXTERNAL_URI_FORMATTED` FROM `'.$dyn_tble_comments.'` LEFT OUTER JOIN `'.$dyn_tble_users.'` ON `'.$dyn_tble_comments.'`.`USERNAME` = `'.$dyn_tble_users.'`.`USERNAME` WHERE `'.$dyn_tble_comments.'`.`NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTEID_SOURCE')).'" ORDER BY `'.$dyn_tble_comments.'`.`DATECREATED` DESC;';
+					self::$query = 'SELECT `'.$dyn_tbl_notes.'`.`NOTEID_SOURCE`,`'.$dyn_tbl_notes.'`.`USERNAME`,`'.$dyn_tbl_notes.'`.`ISACTIVE`,`'.$dyn_tbl_notes.'`.`REPLYTO_NOTEID`,`'.$dyn_tbl_notes.'`.`SUBJECT`,`'.$dyn_tbl_notes.'`.`NOTE_STYLED`,`'.$dyn_tbl_notes.'`.`NOTE_RAW`,`'.$dyn_tbl_notes.'`.`NOTE_ELEM_TT`,`'.$dyn_tbl_notes.'`.`STYLED_CHAR_CNT`,`'.$dyn_tbl_notes.'`.`RAW_CHAR_CNT`,`'.$dyn_tbl_notes.'`.`LANGCODE`,`'.$dyn_tbl_notes.'`.`DATEMODIFIED`,`'.$dyn_tbl_notes.'`.`DATECREATED`,`'.$dyn_tbl_users.'`.`USERID_SOURCE`,`'.$dyn_tbl_users.'`.`USERNAME_DISPLAY`,`'.$dyn_tbl_users.'`.`IMAGE_NAME`,`'.$dyn_tbl_users.'`.`IMAGE_WIDTH`,`'.$dyn_tbl_users.'`.`IMAGE_HEIGHT`,`'.$dyn_tbl_users.'`.`EXTERNAL_URI_FORMATTED` FROM `'.$dyn_tbl_notes.'` LEFT OUTER JOIN `'.$dyn_tbl_users.'` ON `'.$dyn_tbl_notes.'`.`USERNAME` = `'.$dyn_tbl_users.'`.`USERNAME` WHERE `'.$dyn_tbl_notes.'`.`NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTEID_SOURCE')).'" ORDER BY `'.$dyn_tbl_notes.'`.`DATECREATED` DESC;';
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
 					if($mysqli->error){
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
 					
@@ -881,25 +824,17 @@ class database_integration {
 						//
 						// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
 						$ROWCNT=0;
-						do {
-							if (self::$result = $mysqli->store_result()) {
-								while ($row = self::$result->fetch_row()) {
-									foreach($row as $fieldPos=>$value){
-										//
-										// STORE RESULT
-										self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
-										
-									}
-									$ROWCNT++;
-								}
-								self::$result->free();
-							}
-					
-							if ($mysqli->more_results()) {
+						while ($row = self::$result->fetch_row()) {
+							foreach($row as $fieldPos=>$value){
 								//
-								// END OF RECORD. MORE TO FOLLOW.
+								// STORE RESULT
+								//error_log("services /database.inc.php (296) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
+								self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+								
 							}
-						} while ($mysqli->next_result());
+							$ROWCNT++;
+						}
+						self::$result->free();
 						
 						//
 						// CLOSE CONNECTION
@@ -914,59 +849,43 @@ class database_integration {
 				case 'svc_isValidLoginData':
 					//
 					// BUILD QUERY
-					self::$query = 'SELECT 
-					`users`.`USERNAME`,
-					`users`.`ISACTIVE`,
-					`users`.`USERNAME_DISPLAY`,
-					`users`.`EMAIL`,
-					`users`.`PWDHASH`,
-					`users`.`USER_PERMISSIONS_ID`,
-					`users`.`LANGCODE`,
-					`users`.`LOGIN_CNT`,
-					`users`.`SESSION_PERSIST`,
-					`users`.`IMAGE_NAME`,
-					`users`.`IMAGE_WIDTH`,
-					`users`.`IMAGE_HEIGHT`,
-					`users`.`EXTERNAL_URI_FORMATTED` FROM `users` 
-					WHERE `users`.`USERNAME`="'.$mysqli->real_escape_string(strtolower($oUser->getReqParamByKey('USERNAME'))).'" AND 
-					`users`.`USERNAME_CRC32`="'.crc32(strtolower($oUser->getReqParamByKey('USERNAME'))).'" LIMIT 1;';
-					#error_log('(755) :: '.self::$query);
+					#self::$query = 'SELECT `users`.`USERNAME`,`users`.`ISACTIVE`,`users`.`USERNAME_DISPLAY`,`users`.`EMAIL`,`users`.`USER_PERMISSIONS_ID`,`users`.`LANGCODE`,`users`.`LOGIN_CNT`,`users`.`SESSION_PERSIST`,`users`.`IMAGE_NAME`,`users`.`IMAGE_WIDTH`,`users`.`IMAGE_HEIGHT`,`users`.`EXTERNAL_URI_FORMATTED` FROM `users` WHERE `users`.`USERNAME`="'.$mysqli->real_escape_string(strtolower($oUser->getReqParamByKey('USERNAME'))).'" AND `users`.`USERNAME_CRC32`="'.crc32(strtolower($oUser->getReqParamByKey('USERNAME'))).'" AND `users`.`PWDHASH`="'.$oUser->getReqParamByKey('PWDHASH').'" LIMIT 1;';
+					self::$query = 'SELECT `users`.`USERNAME`,`users`.`ISACTIVE`,`users`.`USERNAME_DISPLAY`,`users`.`EMAIL`,`users`.`PWDHASH`,`users`.`USER_PERMISSIONS_ID`,`users`.`LANGCODE`,`users`.`LOGIN_CNT`,`users`.`SESSION_PERSIST`,`users`.`IMAGE_NAME`,`users`.`IMAGE_WIDTH`,`users`.`IMAGE_HEIGHT`,`users`.`EXTERNAL_URI_FORMATTED` FROM `users` WHERE `users`.`USERNAME`="'.$mysqli->real_escape_string(strtolower($oUser->getReqParamByKey('USERNAME'))).'" AND `users`.`USERNAME_CRC32`="'.crc32(strtolower($oUser->getReqParamByKey('USERNAME'))).'" LIMIT 1;';
+					
+					
+					#error_log('services database.inc.php (1058) query :: '.self::$query);
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
 					if($mysqli->error){
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
 					
 					}else{
 						//
 						// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
+						//error_log("services /database.inc.php (291) about to process singlet...");
 						$ROWCNT=0;
-						do {
-							if (self::$result = $mysqli->store_result()) {
-								while ($row = self::$result->fetch_row()) {
-									foreach($row as $fieldPos=>$value){
-										//
-										// STORE RESULT
-										self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
-										
-									}
-									$ROWCNT++;
-								}
-								self::$result->free();
-							}
-					
-							if ($mysqli->more_results()) {
+						while ($row = self::$result->fetch_row()) {
+							foreach($row as $fieldPos=>$value){
 								//
-								// END OF RECORD. MORE TO FOLLOW.
+								// STORE RESULT
+								//error_log("services /database.inc.php (296) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
+								self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+								
 							}
-						} while ($mysqli->next_result());
+							$ROWCNT++;
+						}
+						self::$result->free();
+					
+							
 						
 						//
 						// VERIFY LOGIN
+						#error_log("/services/ database.inc.php (806) Checking password: ".$oUser->getReqParamByKey('PWDHASH')." against HASH: ".self::$result_ARRAY[0][4]);
 						if(password_verify($oUser->getReqParamByKey('PWDHASH'), self::$result_ARRAY[0][4])){
 							//
 							// WE HAVE VALID PASSWORD FOR ACCOUNT
-							//error_log("/crnrstn/ database.inc.php (807) password valid");
+							#error_log("/services/ database.inc.php (809) password valid");
 							
 							//
 							// INCRMENT LOGIN COUNT
@@ -988,13 +907,16 @@ class database_integration {
 							// RETURN RESULT SET ARRAY
 							return self::$result_ARRAY;
 						
+						
 						}else{
 							//
 							// PASSWORD INVALID
 							#error_log("/crnrstn/ database.inc.php (807) password invalid");
+							//
+							// CLOSE CONNECTION
+							$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);
 							return false;
 						}
-
 					}
 				break;
 				case 'svc_getAllToolTips':
@@ -1004,7 +926,7 @@ class database_integration {
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query_elements);
+					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query_elements);
 					if($mysqli->error){
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
 					
@@ -1012,25 +934,17 @@ class database_integration {
 						//
 						// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
 						$ROWCNT=0;
-						do {
-							if (self::$result = $mysqli->store_result()) {
-								while ($row = self::$result->fetch_row()) {
-									foreach($row as $fieldPos=>$value){
-										//
-										// STORE RESULT
-										self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
-										
-									}
-									$ROWCNT++;
-								}
-								self::$result->free();
-							}
-					
-							if ($mysqli->more_results()) {
+						while ($row = self::$result->fetch_row()) {
+							foreach($row as $fieldPos=>$value){
 								//
-								// END OF RECORD. MORE TO FOLLOW.
+								// STORE RESULT
+								//error_log("services /database.inc.php (296) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
+								self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+								
 							}
-						} while ($mysqli->next_result());
+							$ROWCNT++;
+						}
+						self::$result->free();
 						
 						//
 						// CLOSE CONNECTION
@@ -1046,55 +960,32 @@ class database_integration {
 					//
 					// BUILD QUERY
 					self::$query = 'SELECT USERNAME FROM users WHERE USERNAME="'.strtolower($mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME'))).'" AND USERNAME_CRC32="'.crc32(strtolower($mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')))).'" LIMIT 1;';
-					
-					//error_log("(887) query [".self::$query."]");
+					#error_log(self::$query);
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
-					if($mysqli->error){
-						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
-					
-					}else{
-						//
-						// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
-						$ROWCNT=0;
-//						do {
-//							if (self::$result = $mysqli->store_result()) {
-//								while ($row = self::$result->fetch_row()) {
-//									foreach($row as $fieldPos=>$value){
-//										//
-//										// STORE RESULT
-//										self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
-//									}
-//									$ROWCNT++;
-//								}
-//								self::$result->free();
-//							}
-//					
-//							if ($mysqli->more_results()) {
-//								//
-//								// END OF RECORD. MORE TO FOLLOW.
-//							}
-//						} while ($mysqli->next_result());
-						if (self::$result) {	
-							do {
-					
-									while ($row = self::$result->fetch_row()) {
-										//printf("%s\n", $row[1]);
-										self::$result_ARRAY[$ROWCNT][0]=$value;
+					//error_log("services /database.inc.php (910) query [".self::$query."]");
+					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+							if($mysqli->error){
+								throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+							
+							}else{
+								//
+								// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
+								//error_log("services /database.inc.php (291) about to process singlet...");
+								$ROWCNT=0;
+								while ($row = self::$result->fetch_row()) {
+									foreach($row as $fieldPos=>$value){
+										//
+										// STORE RESULT
+										//error_log("services /database.inc.php (296) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
+										self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+										
 									}
-									self::$result->free();
-					
-								/* print divider */
-								if ($mysqli->more_results()) {
-									printf("-----------------\n");
+									$ROWCNT++;
 								}
-							} while ($mysqli->next_result());
-						}	
-
-
-
-						
+								self::$result->free();
+							
+							
 						//
 						// CLOSE CONNECTION
 						$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);
@@ -1105,6 +996,656 @@ class database_integration {
 					}
 					
 				break;
+				case 'svc_trkDwnld':
+					//error_log("/services/database.inc.php (924) REQUEST_URI: ".$oUser->getReqParamByKey('REQUEST_URI')." REMOTE_ADDR: ".$oUser->getReqParamByKey('REMOTE_ADDR'));
+					
+					self::$query = 'INSERT INTO `log_downloads` (`HTTP_USER_AGENT`,`REQUEST_URI`,`REMOTE_ADDR`) VALUES ("'.$mysqli->real_escape_string($oUser->getReqParamByKey('HTTP_USER_AGENT')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('REQUEST_URI')).'",INET_ATON("'.$oUser->getReqParamByKey('REMOTE_ADDR').'"));';
+					//
+					// PROCESS QUERY
+					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+					
+					$ROWCNT=0;
+					do {
+						if($mysqli->error){
+							if($ROWCNT>0){
+								self::$query_exception_result='tracked=false';
+							}else{
+								self::$query_exception_result='tracked=falseall';
+							}
+							
+							throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.'] on un='.strtolower($oUser->getReqParamByKey('USERNAME')));
+							
+						}
+						$ROWCNT++;
+				
+						if ($mysqli->more_results()) {
+							//
+							// END OF RECORD. MORE TO FOLLOW.
+						}
+					} while ($mysqli->next_result());
+				
+					if($mysqli->error){
+						self::$query_exception_result='tracked=false';	
+						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+					}
+					
+					//
+					// CLOSE CONNECTION
+					$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);
+					
+					return "tracked=true";
+				break;
+				case 'svc_resetPassword':
+					//error_log("/services/database.inc.php (1016) USERNAME: ".$oUser->getReqParamByKey('USERNAME')." EMAIL: ".$oUser->getReqParamByKey('EMAIL'));
+					if($oUser->getReqParamByKey('EMAIL')!=''){
+						//
+						// SEARCH FOR ACCOUNT WITH EMAIL
+						self::$query = 'SELECT USERNAME,USERID_SOURCE,ISACTIVE,USERNAME_DISPLAY,EMAIL FROM users WHERE EMAIL="'.strtolower($mysqli->real_escape_string(trim($oUser->getReqParamByKey('EMAIL')))).'" LIMIT 1;';
+					}else{
+						//
+						// SEARCH FOR ACCOUNT WITH USERNAME
+						self::$query = 'SELECT USERNAME,USERID_SOURCE,ISACTIVE,USERNAME_DISPLAY,EMAIL FROM users WHERE USERNAME="'.strtolower($mysqli->real_escape_string(trim($oUser->getReqParamByKey('USERNAME')))).'" LIMIT 1;';
+					}
+					
+					//error_log("/services/database.inc.php (978) query: ".self::$query);
+					
+					//
+					// PROCESS QUERY
+					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+					if($mysqli->error){
+						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+					
+					}else{
+						//
+						// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
+						$ROWCNT=0;
+						while ($row = self::$result->fetch_row()) {
+							foreach($row as $fieldPos=>$value){
+								//
+								// STORE RESULT
+								//error_log("services /database.inc.php (296) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
+								self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+								
+							}
+							$ROWCNT++;
+						}
+						self::$result->free();
+
+
+					}
+					
+					//error_log("/services/database.inc.php (1053) [".$_SESSION['TMP_QUERY_EXECUTE']."]sizeof: ".sizeof(self::$result_ARRAY[0]));
+					if(sizeof(self::$result_ARRAY[0])>1 && $_SESSION['TMP_QUERY_EXECUTE']==""){
+						#USERNAME,USERID_SOURCE,ISACTIVE,USERNAME_DISPLAY,EMAIL
+						$_SESSION['TMP_QUERY_EXECUTE'] = "run once";
+						$seednum_b = microtime().rand();
+						$seednum_full = md5(microtime());
+						$seednum_a = substr($seednum_full,0,30);
+						$seednum_b = md5($seednum_b);
+						$seednum_c = md5(rand());
+						$seednum_key = $seednum_a.substr($seednum_b,0,20);
+						$seednum_msg = $seednum_a.$seednum_c.substr($seednum_b,0,8);
+						
+						self::$query = 'INSERT INTO `msg_queue` (`MSG_SOURCEID`,`MSG_SOURCEID_CRC32`,`MSG_KEYID`,`MSG_KEYID_CRC32`,`EMAIL`,
+						`USERNAME_DISPLAY`,`ACTIVATION_KEY`,`PWD_RESET`,`DATEMODIFIED`) VALUES (
+						"'.$seednum_msg.'",
+						"'.crc32($seednum_msg).'",
+						"PASSWORD_RESET",
+						"'.crc32('PASSWORD_RESET').'",
+						"'.$mysqli->real_escape_string(self::$result_ARRAY[0][4]).'",
+						"'.$mysqli->real_escape_string(self::$result_ARRAY[0][3]).'",
+						"'.$seednum_key.'",
+						"1",
+						"'.$ts.'"
+						);';
+						
+						
+						//error_log("/services/database.inc.php (1078) msg_queue query: ".self::$query);
+						//
+						// PROCESS QUERY
+						self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+						if($mysqli->error){
+							self::$query_exception_result='pswdreset=false';
+							throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+						
+						}else{
+							
+							return "pswdreset=true";
+						}
+						
+						
+					}else{
+					
+						return "pswdreset=false";
+					}
+				break;
+				case 'svc_resetPassword2':
+					//
+					// COMPARE PASSWORDS WITH CONFIRMATION. IF NOT MATCHING, ERR OUT NOW.
+					#error_log("/services/database.inc.php (1062) PASSWORD: ".$oUser->getReqParamByKey('PASSWORD')." |PASSWORD_CONFIRM: ".$oUser->getReqParamByKey('PASSWORD_CONFIRM')." |MSG_SOURCEID: ".$oUser->getReqParamByKey('MSG_SOURCEID'));
+					if($oUser->getReqParamByKey('PASSWORD')==$oUser->getReqParamByKey('PASSWORD_CONFIRM')){
+						//
+						// GET USERNAME FROM MESSAGE ID
+						self::$query = 'SELECT USERNAME_DISPLAY FROM msg_queue WHERE MSG_SOURCEID="'.strtolower($mysqli->real_escape_string($oUser->getReqParamByKey('MSG_SOURCEID'))).'" AND MSG_SOURCEID_CRC32="'.crc32($mysqli->real_escape_string($oUser->getReqParamByKey('MSG_SOURCEID'))).'" LIMIT 1;';
+						#error_log("/services/database.inc.php (1067) query: ".self::$query);
+						//
+						// PROCESS QUERY
+						self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+						if($mysqli->error){
+							throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+						
+						}else{
+							//
+							// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
+							$ROWCNT=0;
+							while ($row = self::$result->fetch_row()) {
+								foreach($row as $fieldPos=>$value){
+									//
+									// STORE RESULT
+									//error_log("services /database.inc.php (296) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
+									self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+									
+								}
+								$ROWCNT++;
+							}
+							self::$result->free();
+						
+						}
+						
+						#error_log("/services/database.inc.php (1011) sizeof: ".sizeof(self::$result_ARRAY[0]));
+						
+						if(sizeof(self::$result_ARRAY[0])>0){
+							#error_log("/services/database.inc.php (1102) We have username: ".self::$result_ARRAY[0][0]);
+							$options = [
+								'cost' => 9,
+							];
+							
+							
+							$tmp_pwdhash = password_hash($oUser->getReqParamByKey('PASSWORD'), PASSWORD_BCRYPT, $options);
+							
+							self::$query = 'UPDATE `users` SET `PWDHASH`="'.$tmp_pwdhash.'",`DATEMODIFIED`="'.$ts.'" 
+									WHERE `USERNAME`="'.strtolower(trim(self::$result_ARRAY[0][0])).'" AND `USERNAME_CRC32`="'.crc32(strtolower(trim(self::$result_ARRAY[0][0]))).'" LIMIT 1;';
+									
+							
+							//
+							// PROCESS QUERY
+							self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+							
+							$ROWCNT=0;
+							do {
+								if($mysqli->error){
+									if($ROWCNT>0){
+										self::$query_exception_result='passwordreset=false';
+									}else{
+										self::$query_exception_result='passwordreset=falseall';
+									}
+									
+									throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.'] on un='.strtolower($oUser->getReqParamByKey('USERNAME')));
+									
+								}
+								$ROWCNT++;
+						
+								if ($mysqli->more_results()) {
+									//
+									// END OF RECORD. MORE TO FOLLOW.
+								}
+							} while ($mysqli->next_result());
+						
+							if($mysqli->error){
+								self::$query_exception_result='passwordreset=false';	
+								throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.'] on un='.strtolower($oUser->getReqParamByKey('USERNAME')));
+							}
+							
+							//
+							// CLOSE CONNECTION
+							$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);
+							
+							
+							return "passwordreset=true";
+							
+							
+						}else{
+						
+							//
+							// NO MATCH MESSAGE FOUND. HAVE USER TRIGGER ANOTHER PASSWORD REQUEST EMAIL.
+							return "passwordreset=false";
+						}
+						
+					}else{
+						
+						
+						return "passwordreset=false";
+						
+					}
+					#
+					#$oUser->getReqParamByKey('PASSWORD_CONFIRM')
+					#$oUser->getReqParamByKey('MSG_SOURCEID')
+					
+					
+					
+					return "passwordreset=true";
+					
+				
+				break;
+				case 'svc_toggleLikeLink':
+				
+					#error_log("/services/database.inc.php (1180) NOTEID_SOURCE: ".$oUser->getReqParamByKey('NOTEID_SOURCE')."|USERNAME: ".$oUser->getReqParamByKey('USERNAME')."|ELEMENTID: ".$oUser->getReqParamByKey('ELEMENTID')."|STATE: ".$oUser->getReqParamByKey('STATE'));
+					/*
+					$oUser->getReqParamByKey('NOTEID_SOURCE')
+					$oUser->getReqParamByKey('USERNAME')
+					$oUser->getReqParamByKey('ELEMENTID')
+					$oUser->getReqParamByKey('STATE')
+					*/
+					
+					//
+					// LIKE THE CONTENT. MAYBE THERE'S DATA IN THE LIKE TABLE, MAYBE NOT.
+					self::$query = 'SELECT ID,USERNAME,ISACTIVE FROM `crnrstn_'.$oUser->getReqParamByKey('ELEMENTID').'_likes` users WHERE 
+					`NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('NOTEID_SOURCE')).'" AND 
+					`NOTEID_CRC32`="'.crc32($oUser->getReqParamByKey('NOTEID_SOURCE')).'" AND 
+					`USERNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'" AND
+					`USERNAME_CRC32`="'.crc32($oUser->getReqParamByKey('USERNAME')).'" LIMIT 1;';
+					
+					//
+					// PROCESS QUERY
+					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+					if($mysqli->error){
+						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+					
+					}else{
+						//
+						// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
+						$ROWCNT=0;
+						while ($row = self::$result->fetch_row()) {
+							foreach($row as $fieldPos=>$value){
+								//
+								// STORE RESULT
+								//error_log("services /database.inc.php (296) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
+								self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+								
+							}
+							$ROWCNT++;
+						}
+						self::$result->free();
+						
+
+					}
+					
+					switch($oUser->getReqParamByKey('STATE')){
+						case 'like':
+							if(sizeof(self::$result_ARRAY[0])>1){
+								//
+								// WE HAVE RECORD FOR UPDATING TO LIKE.
+								self::$query = 'UPDATE `crnrstn_'.$oUser->getReqParamByKey('ELEMENTID').'_likes` SET ISACTIVE="1" WHERE ID="'.self::$result_ARRAY[0][0].'" AND NOTEID_SOURCE="'.$mysqli->real_escape_string($oUser->getReqParamByKey('NOTEID_SOURCE')).'" AND NOTEID_CRC32="'.crc32($oUser->getReqParamByKey('NOTEID_SOURCE')).'";';
+								
+								
+							}else{
+								//
+								// WE DON'T HAVE THIS
+								self::$query = 'INSERT INTO `crnrstn_'.$oUser->getReqParamByKey('ELEMENTID').'_likes` (
+								`NOTEID_SOURCE`,`NOTEID_CRC32`,`USERNAME`,`USERNAME_CRC32`,`DATEMODIFIED`) VALUES (
+								"'.$mysqli->real_escape_string($oUser->getReqParamByKey('NOTEID_SOURCE')).'",
+								"'.crc32($oUser->getReqParamByKey('NOTEID_SOURCE')).'",
+								"'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'",
+								"'.crc32($oUser->getReqParamByKey('USERNAME')).'",
+								"'.$ts.'"
+								);';
+								
+							}
+							
+							//error_log("/services/database.inc.php (1250) query: ".self::$query);
+							//
+							// PROCESS QUERY
+							self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+							if($mysqli->error){
+								throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+							
+							}else{
+								//
+								// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
+								$ROWCNT=0;
+								//if($oUserEnvironment->getEnvParam("SERVER_NAME")=="services.crnrstn.jony5.com"){
+//									do {
+//										if (self::$result = $mysqli->store_result()) {
+//											while ($row = self::$result->fetch_row()) {
+//												foreach($row as $fieldPos=>$value){
+//													//
+//													// STORE RESULT
+//													error_log($value);
+//													self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+//												}
+//												$ROWCNT++;
+//											}
+//											self::$result->free();
+//										}
+//								
+//										if ($mysqli->more_results()) {
+//											//
+//											// END OF RECORD. MORE TO FOLLOW.
+//										}
+//									} while ($mysqli->next_result());
+//								}else{
+//									if (self::$result) {	
+//										do {
+//								
+//												while ($row = self::$result->fetch_row()) {
+//													//printf("%s\n", $row[1]);
+//													foreach($row as $fieldPos=>$value){
+//			//											//
+//			//											// STORE RESULT
+//														//error_log("services /database.inc.php (947) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
+//														self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+//													}
+//													//self::$result_ARRAY[$ROWCNT][0]=$value;
+//													$ROWCNT++;
+//												}
+//												
+//												self::$result->free();
+//								
+//											/* print divider */
+//											if ($mysqli->more_results()) {
+//												//printf("-----------------\n");
+//											}
+//										} while ($mysqli->next_result());
+//									}	
+//								}
+		
+							}
+							
+							//
+							// INCREMENT GLOBAL COUNTER. SELECT TO GET CURRENT, AND THEN UPDATE.
+							self::$query = 'SELECT NOTEID_SOURCE,NOTEID_CRC32,USERNAME,USERNAME_CRC32,CNT_LIKES FROM `user_notes` users WHERE 
+							`NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('NOTEID_SOURCE')).'" AND 
+							`NOTEID_CRC32`="'.crc32($oUser->getReqParamByKey('NOTEID_SOURCE')).'" AND 
+							`USERNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'" AND
+							`USERNAME_CRC32`="'.crc32($oUser->getReqParamByKey('USERNAME')).'" LIMIT 1;';
+							
+							//
+							// PROCESS QUERY
+							self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+							if($mysqli->error){
+								throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+							
+							}else{
+								//
+								// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
+								$ROWCNT=0;
+								while ($row = self::$result->fetch_row()) {
+									foreach($row as $fieldPos=>$value){
+										//
+										// STORE RESULT
+										//error_log("services /database.inc.php (296) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
+										self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+										
+									}
+									$ROWCNT++;
+								}
+								self::$result->free();
+		
+							}
+							
+							//
+							// INCREMENT COUNT
+							self::$result_ARRAY[0][4]++;
+							
+							self::$query = 'UPDATE `user_notes` SET CNT_LIKES="'.self::$result_ARRAY[0][4].'" WHERE 
+							`NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('NOTEID_SOURCE')).'" AND 
+							`NOTEID_CRC32`="'.crc32($oUser->getReqParamByKey('NOTEID_SOURCE')).'" LIMIT 1;';
+							
+							//
+							// PROCESS QUERY
+							//error_log("/services/database.inc.php (1340) Like Increment query: ".self::$query);
+							self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+							if($mysqli->error){
+								throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+							
+							}
+							
+							return "toggleLike=true";
+							
+						break;
+						default:
+							self::$query = '';
+							//
+							// UNLIKE THE CONTENT. WE KNOW THERE ALREADY IS RECORD IN LIKE TABLE.
+							if(sizeof(self::$result_ARRAY[0])>1){
+								//
+								// WE HAVE RECORD FOR UPDATING TO LIKE.
+								self::$query = 'UPDATE `crnrstn_'.$oUser->getReqParamByKey('ELEMENTID').'_likes` SET ISACTIVE="0" WHERE ID="'.self::$result_ARRAY[0][0].'" AND NOTEID_SOURCE="'.$mysqli->real_escape_string($oUser->getReqParamByKey('NOTEID_SOURCE')).'" AND NOTEID_CRC32="'.crc32($oUser->getReqParamByKey('NOTEID_SOURCE')).'";';
+								
+								//
+								// PROCESS QUERY
+								self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+								if($mysqli->error){
+									throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+								
+								}
+								
+								//
+								// INCREMENT GLOBAL COUNTER. SELECT TO GET CURRENT, AND THEN UPDATE.
+								self::$query = 'SELECT NOTEID_SOURCE,NOTEID_CRC32,USERNAME,USERNAME_CRC32,CNT_LIKES FROM `user_notes` users WHERE 
+								`NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('NOTEID_SOURCE')).'" AND 
+								`NOTEID_CRC32`="'.crc32($oUser->getReqParamByKey('NOTEID_SOURCE')).'" AND 
+								`USERNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'" AND
+								`USERNAME_CRC32`="'.crc32($oUser->getReqParamByKey('USERNAME')).'" LIMIT 1;';
+								
+								//
+								// PROCESS QUERY
+								self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+								if($mysqli->error){
+									throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+								
+								}else{
+									//
+									// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
+									$ROWCNT=0;
+									while ($row = self::$result->fetch_row()) {
+										foreach($row as $fieldPos=>$value){
+											//
+											// STORE RESULT
+											//error_log("services /database.inc.php (296) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
+											self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+											
+										}
+										$ROWCNT++;
+									}
+									self::$result->free();
+			
+								}
+								
+								//
+								// DECREMENT COUNT, BUT NOT LOWER THAN 0
+								self::$result_ARRAY[0][4]--;
+								
+								if(self::$result_ARRAY[0][4]<0){
+									self::$result_ARRAY[0][4]=0;
+								}
+								
+								self::$query = 'UPDATE `user_notes` SET CNT_LIKES="'.self::$result_ARRAY[0][4].'" WHERE 
+								`NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('NOTEID_SOURCE')).'" AND 
+								`NOTEID_CRC32`="'.crc32($oUser->getReqParamByKey('NOTEID_SOURCE')).'" AND 
+								`USERNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'" AND
+								`USERNAME_CRC32`="'.crc32($oUser->getReqParamByKey('USERNAME')).'" LIMIT 1;';
+								
+								//
+								// PROCESS QUERY
+								self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+								if($mysqli->error){
+									throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+								
+								}
+								
+								
+								
+								return "toggleLike=true";
+								
+								
+								
+								
+							}else{
+								//
+								// WE HAVE A LOGICAL ERROR HERE WHERE CONTENT HAS BEEN LIKED...BUT THERE IS NO DATA IN THE LIKE TABLE FOR IT.
+								# PROBABLY SHOULD ERROR OUT HERE, BUT OH WELL.
+							}
+							
+							#error_log("/services/database.inc.php (1267) query: ".self::$query);
+							
+						break;
+					
+					}
+					
+					return true;
+					
+				break;
+				case 'svc_triggerActivationEmail':
+					//error_log("/services/database.inc.php (972) USERNAME: ".$oUser->getReqParamByKey('USERNAME')." EMAIL: ".$oUser->getReqParamByKey('EMAIL'));
+					if($oUser->getReqParamByKey('EMAIL')!=''){
+						//
+						// FIND USER IN USER DATABASE.
+						self::$query = 'SELECT USERNAME,ISACTIVE,USERNAME_DISPLAY,EMAIL FROM users WHERE EMAIL="'.strtolower($mysqli->real_escape_string($oUser->getReqParamByKey('EMAIL'))).'" LIMIT 1;';
+					
+					}else{
+						if($oUser->getReqParamByKey('USERNAME')!=''){
+							self::$query = 'SELECT USERNAME,ISACTIVE,USERNAME_DISPLAY,EMAIL FROM users WHERE USERNAME="'.strtolower($mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME'))).'" AND USERNAME_CRC32="'.crc32(strtolower($mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')))).'" LIMIT 1;';
+					
+							
+						}else{
+							return "triggeractivationemail=false";
+						}
+						
+					}
+					//error_log("/services/database.inc.php (937) query: ".self::$query);
+					
+					//
+					// PROCESS QUERY
+					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+					if($mysqli->error){
+						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+					
+					}else{
+						//
+						// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
+						$ROWCNT=0;
+						while ($row = self::$result->fetch_row()) {
+							foreach($row as $fieldPos=>$value){
+								//
+								// STORE RESULT
+								//error_log("services /database.inc.php (296) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
+								self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+								
+							}
+							$ROWCNT++;
+						}
+						self::$result->free();
+						
+						
+
+					}
+				
+					//error_log("/services/database.inc.php (988) sizeof: ".sizeof(self::$result_ARRAY[0]));
+					if(sizeof(self::$result_ARRAY[0])>1){
+						//
+						// WE HAVE USER. TRY TO EXTRACT KEY AND QUEUE MESSAGE.
+						#self::$query = 'SELECT KEY,USERNAME,EMAIL FROM users_activation WHERE USERNAME="'.$mysqli->real_escape_string(self::$result_ARRAY[0][0]).'" OR EMAIL="'.strtolower($mysqli->real_escape_string(self::$result_ARRAY[0][3])).'" LIMIT 1;';
+						self::$query = 'SELECT `KEY`,USERNAME,EMAIL FROM users_activation WHERE USERNAME="'.$mysqli->real_escape_string(self::$result_ARRAY[0][0]).'" OR EMAIL="'.strtolower($mysqli->real_escape_string(self::$result_ARRAY[0][3])).'" LIMIT 1;';
+						
+						//
+						// PROCESS QUERY
+						//error_log("/services/database.inc.php (996) query: ".self::$query);
+						self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+						self::$result_ARRAY = "";
+						if($mysqli->error){
+							throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+						
+						}else{
+							//
+							// REMAIN STILL WHILE YOUR LIFE IS EXTRACTED
+							$ROWCNT=0;
+							while ($row = self::$result->fetch_row()) {
+								foreach($row as $fieldPos=>$value){
+									//
+									// STORE RESULT
+									//error_log("services /database.inc.php (296) rowcnt[".$ROWCNT."] fieldPos[".$fieldPos."] value [".$value."]");
+									self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
+									
+								}
+								$ROWCNT++;
+							}
+							self::$result->free();
+							
+	
+						}
+						
+						$seednum_b = microtime().rand();
+						$seednum_full = md5(strtolower(self::$result_ARRAY[0][0]));
+						$seednum_a = substr($seednum_full,0,30);
+						$seednum_b = md5($seednum_b);
+						$seednum_c = md5(strtolower(self::$result_ARRAY[0][3]));
+						$seednum_key = $seednum_a.substr($seednum_b,0,20);
+						$seednum_msg = $seednum_a.$seednum_c.substr($seednum_b,0,8);
+										
+						//
+						// PREPARE QUERY
+						#self::$query = 'INSERT INTO `users_activation` (`KEY`, `KEY_CRC32`, `USERNAME`, `USERNAME_CRC32`, `EMAIL`, `DATEMODIFIED`) VALUES ("'.$seednum_key.'", "'.crc32($seednum_key).'", "'.self::$result_ARRAY[0][0].'", "'.crc32(strtolower(self::$result_ARRAY[0][0])).'", "'.$mysqli->real_escape_string(strtolower(self::$result_ARRAY[0][3])).'", "'.$ts.'");';
+						if($_SESSION['TMP_QUERY_EXECUTE'] == ""){
+							$_SESSION['TMP_QUERY_EXECUTE'] = "query run";
+							self::$query = 'INSERT INTO `msg_queue` (
+							`MSG_SOURCEID`,`MSG_SOURCEID_CRC32`,`MSG_KEYID`,`MSG_KEYID_CRC32`,`EMAIL`,
+							`USERNAME_DISPLAY`,`ACTIVATION_KEY`,`DATEMODIFIED`) VALUES (
+							"'.$seednum_msg.'",
+							"'.crc32($seednum_msg).'",
+							"ACCOUNT_ACTIVATION",
+							"'.crc32('ACCOUNT_ACTIVATION').'",
+							"'.$mysqli->real_escape_string(strtolower(self::$result_ARRAY[0][2])).'",
+							"'.$mysqli->real_escape_string(self::$result_ARRAY[0][1]).'",
+							"'.self::$result_ARRAY[0][0].'",
+							"'.$ts.'"
+							);';
+							
+							#error_log('/services/database.inc.php (1020) trigger new activation email :: '.self::$query);
+							
+							//
+							// PROCESS QUERY
+							self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+							
+							$ROWCNT=0;
+							do {
+								if($mysqli->error){
+									if($ROWCNT>0){
+										self::$query_exception_result='triggeractivationemail=false';
+									}else{
+										self::$query_exception_result='triggeractivationemail=falseall';
+									}
+									
+									throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.'] on un='.strtolower($oUser->getReqParamByKey('USERNAME')));
+									
+								}
+								$ROWCNT++;
+						
+								if ($mysqli->more_results()) {
+									//
+									// END OF RECORD. MORE TO FOLLOW.
+								}
+							} while ($mysqli->next_result());
+						
+							if($mysqli->error){
+								self::$query_exception_result='triggeractivationemail=false';	
+								throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.'] on un='.strtolower($oUser->getReqParamByKey('USERNAME')));
+							}
+						}
+						
+						//
+						// CLOSE CONNECTION
+						$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);
+						
+						
+						return "triggeractivationemail=true";
+					}else{
+						
+						return "triggeractivationemail=false";
+					}
+					
+				
+				break;
 				case 'svc_creatNewUser':
 					//
 					// PREPARE HASHES
@@ -1112,19 +1653,34 @@ class database_integration {
 					$seednum_full = md5(strtolower($oUser->getReqParamByKey('USERNAME')));
 					$seednum_a = substr($seednum_full,0,30);
 					$seednum_b = md5($seednum_b);
+					$seednum_c = md5(strtolower($oUser->getReqParamByKey('EMAIL')));
 					$seednum_key = $seednum_a.substr($seednum_b,0,20);
+					$seednum_msg = $seednum_a.$seednum_c.substr($seednum_b,0,8);
+					$tmp_options = [
+							'cost' => 9,
+						];
 										
 					//
 					// PREPARE QUERY
-					self::$query = 'INSERT INTO `users` (`USERNAME`,`USERID_SOURCE`,`USERNAME_CRC32`,`USERID`,`FIRSTNAME`,`LASTNAME`,`USERNAME_DISPLAY`,`EMAIL`,`EMAIL_CRC32`,`PWDHASH`,`LASTLOGIN`,`SESSION_PERSIST`,`DATEMODIFIED`) VALUES ("'.$mysqli->real_escape_string(strtolower($oUser->getReqParamByKey('USERNAME'))).'","'.$seednum_full.'","'.crc32(strtolower($oUser->getReqParamByKey('USERNAME'))).'","'.crc32($seednum_full).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('FIRSTNAME')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('LASTNAME')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'","'.$mysqli->real_escape_string(strtolower($oUser->getReqParamByKey('EMAIL'))).'","'.crc32(strtolower($oUser->getReqParamByKey('EMAIL'))).'","'.$oUser->getReqParamByKey('PWDHASH').'","'.$ts.'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('SESSION_PERSIST')).'","'.$ts.'");';
+					self::$query = 'INSERT INTO `users` (`USERNAME`,`USERID_SOURCE`,`USERNAME_CRC32`,`USERID`,`FIRSTNAME`,`LASTNAME`,`USERNAME_DISPLAY`,`EMAIL`,`EMAIL_CRC32`,`PWDHASH`,`LASTLOGIN`,`SESSION_PERSIST`,`DATEMODIFIED`) VALUES ("'.$mysqli->real_escape_string(strtolower($oUser->getReqParamByKey('USERNAME'))).'","'.$seednum_full.'","'.crc32(strtolower($oUser->getReqParamByKey('USERNAME'))).'","'.crc32($seednum_full).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('FIRSTNAME')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('LASTNAME')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'","'.$mysqli->real_escape_string(strtolower($oUser->getReqParamByKey('EMAIL'))).'","'.crc32(strtolower($oUser->getReqParamByKey('EMAIL'))).'","'.password_hash($oUser->getReqParamByKey('PWDHASH'), PASSWORD_BCRYPT, $tmp_options).'","'.$ts.'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('SESSION_PERSIST')).'","'.$ts.'");';
 					self::$query .= 'INSERT INTO `users_activation` (`KEY`, `KEY_CRC32`, `USERNAME`, `USERNAME_CRC32`, `EMAIL`, `DATEMODIFIED`) VALUES ("'.$seednum_key.'", "'.crc32($seednum_key).'", "'.$mysqli->real_escape_string(strtolower($oUser->getReqParamByKey('USERNAME'))).'", "'.crc32(strtolower($oUser->getReqParamByKey('USERNAME'))).'", "'.$mysqli->real_escape_string(strtolower($oUser->getReqParamByKey('EMAIL'))).'", "'.$ts.'");';
-
+					self::$query .= 'INSERT INTO `msg_queue` (`MSG_SOURCEID`,`MSG_SOURCEID_CRC32`,`MSG_KEYID`,`MSG_KEYID_CRC32`,`EMAIL`,
+					`USERNAME_DISPLAY`,`ACTIVATION_KEY`,`DATEMODIFIED`) VALUES (
+					"'.$seednum_msg.'",
+					"'.crc32($seednum_msg).'",
+					"ACCOUNT_ACTIVATION",
+					"'.crc32('ACCOUNT_ACTIVATION').'",
+					"'.$mysqli->real_escape_string(strtolower($oUser->getReqParamByKey('EMAIL'))).'",
+					"'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'",
+					"'.$seednum_key.'",
+					"'.$ts.'"
+					);';
 					
-					//error_log('(921) svc_creatNewUser :: '.self::$query);
+					//error_log('(1935) svc_creatNewUser :: query->'.self::$query);
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
 					
 					$ROWCNT=0;
 					do {
@@ -1149,7 +1705,7 @@ class database_integration {
 					if($mysqli->error){
 						self::$query_exception_result='newuser=false';	
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.'] on un='.strtolower($oUser->getReqParamByKey('USERNAME')));
-					}					
+					}			
 					
 					//
 					// CLOSE CONNECTION
@@ -1165,18 +1721,9 @@ class database_integration {
 					
 					//
 					// SELECT ...
-					self::$query = 'SELECT `users_activation`.`KEY`,`users_activation`.`KEY_CRC32`,
-					`users_activation`.`USERNAME`,`users_activation`.`USERNAME_CRC32`,
-					`users_activation`.`ISACTIVE`,`users`.`USERID_SOURCE`,`users`.`ISACTIVE`,`users`.`SESSION_PERSIST`
-					FROM `users_activation` INNER JOIN `users` ON 
-					`users_activation`.`USERNAME` = `users`.`USERNAME` WHERE 
-					`users_activation`.`KEY`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('KEY')).'" AND 
-					`users_activation`.`KEY_CRC32`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('KEY_CRC32')).'" AND 
-					`users_activation`.`USERNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'" AND 
-					 `users_activation`.`USERNAME_CRC32`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME_CRC32')).'"
-					;';
+					self::$query = 'SELECT `users_activation`.`KEY`,`users_activation`.`KEY_CRC32`,`users_activation`.`USERNAME`,`users_activation`.`USERNAME_CRC32`,`users_activation`.`ISACTIVE`,`users`.`USERID_SOURCE`,`users`.`ISACTIVE`,`users`.`SESSION_PERSIST` FROM `users_activation` INNER JOIN `users` ON `users_activation`.`USERNAME` = `users`.`USERNAME` WHERE `users_activation`.`KEY`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('KEY')).'" AND `users_activation`.`KEY_CRC32`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('KEY_CRC32')).'" AND `users_activation`.`USERNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'" AND `users_activation`.`USERNAME_CRC32`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME_CRC32')).'";';
 					
-					#error_log('(955) :: '.self::$query);
+					//error_log('/services/database.inc.php (1184) :: '.self::$query);
 					
 					//
 					// PROCESS QUERY
@@ -1184,7 +1731,8 @@ class database_integration {
 					switch(self::$result->num_rows){
 						case 1:
 							#error_log('(965) :: OK TO ACTIVATE '.self::$result->num_rows);
-							$row = self::$result->fetch_all(MYSQLI_NUM);
+							#$row = self::$result->fetch_all(MYSQLI_NUM);
+							$row = self::$result->fetch_array();
 							#error_log('(966) :: query output '.$row[0][self::$queryDescript_ARRAY['users_activation_KEY']].'|'.$row[0][self::$queryDescript_ARRAY['users_activation_USERNAME']].'|'.$row[0][self::$queryDescript_ARRAY['users_activation_ISACTIVE']].'|'.$row[0][self::$queryDescript_ARRAY['users_USERID_SOURCE']].'|'.$row[0][self::$queryDescript_ARRAY['users_ISACTIVE']]);
 							
 							switch($row[0][self::$queryDescript_ARRAY['users_activation_ISACTIVE']]){
@@ -1192,21 +1740,22 @@ class database_integration {
 									//
 									// ACTIVATE ACCOUNT. BUILD QUERIES
 									self::$query = 'UPDATE `users` SET `ISACTIVE`="1",`DATEMODIFIED`="'.$ts.'" 
-									WHERE `USERNAME`="'.$row[0][self::$queryDescript_ARRAY['users_activation_USERNAME']].'" AND 
-									`USERID_SOURCE`="'.md5($row[0][self::$queryDescript_ARRAY['users_activation_USERNAME']]).'" AND 
-									`USERNAME_CRC32`="'.crc32($row[0][self::$queryDescript_ARRAY['users_activation_USERNAME']]).'" AND
-									`USERID`="'.crc32(md5($row[0][self::$queryDescript_ARRAY['users_activation_USERNAME']])).'" LIMIT 1;';
+									WHERE `USERNAME`="'.$row["USERNAME"].'" AND 
+									`USERID_SOURCE`="'.md5($row["USERNAME"]).'" AND 
+									`USERNAME_CRC32`="'.crc32($row["USERNAME"]).'" AND
+									`USERID`="'.crc32(md5($row["USERNAME"])).'" LIMIT 1;';
 									
 									self::$query .= 'UPDATE `users_activation` SET `ISACTIVE`="1",`DATEMODIFIED`="'.$ts.'" 
-									WHERE `KEY`="'.$row[0][self::$queryDescript_ARRAY['users_activation_KEY']].'" AND 
-									`KEY_CRC32`="'.$row[0][self::$queryDescript_ARRAY['users_activation_KEY_CRC32']].'" AND 
-									`USERNAME`="'.$row[0][self::$queryDescript_ARRAY['users_activation_USERNAME']].'" AND
-									`USERNAME_CRC32`="'.$row[0][self::$queryDescript_ARRAY['users_activation_USERNAME_CRC32']].'" LIMIT 1;';
+									WHERE `KEY`="'.$row["KEY"].'" AND 
+									`KEY_CRC32`="'.$row["KEY_CRC32"].'" AND 
+									`USERNAME`="'.$row["USERNAME"].'" AND
+									`USERNAME_CRC32`="'.$row["USERNAME_CRC32"].'" LIMIT 1;';
 									
-									#error_log('(991) :: '.self::$query);
+									#error_log("(1203) USERNAME: ".$row["USERNAME"]);
+									#error_log('/services/ database.inc.php (1204) :: '.self::$query);
 									//
 									// PROCESS QUERY
-									self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+									$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
 									
 									$ROWCNT=0;
 									do {
@@ -1249,13 +1798,13 @@ class database_integration {
 						case 0:
 							//
 							// POTENTIAL HACK ATTEMPT OR SYSTEM ERR
-							error_log('(1037) :: ACTIVATION ERROR :: NUMROW=0|accountactivate=dataerror_null|'.$row[0][self::$queryDescript_ARRAY['users_activation_KEY']]);
+							error_log('(1037) :: ACTIVATION ERROR :: NUMROW=0|accountactivate=dataerror_null|'.$row["KEY"]);
 							return 'accountactivate=dataerror_null';
 						break;
 						default:
 							//
 							// POTENTIAL SYSTEM ERR
-							error_log('(1043) :: ACTIVATION ERROR :: NUMROW='.self::$result->num_rows.'|accountactivate=dataerror_redun|'.$row[0][self::$queryDescript_ARRAY['users_activation_KEY']]);
+							error_log('(1043) :: ACTIVATION ERROR :: NUMROW='.self::$result->num_rows.'|accountactivate=dataerror_redun|'.$row["KEY"]);
 							return 'accountactivate=dataerror_redun';
 						break;
 					}
@@ -1270,7 +1819,16 @@ class database_integration {
 					}else{
 				
 						if(strlen($oUser->getReqParamByKey('PWDHASH'))>10){
-							self::$query = 'UPDATE `users` SET `FIRSTNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('FIRSTNAME')).'",`LASTNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('LASTNAME')).'",`EMAIL`="'.$mysqli->real_escape_string(strtolower($oUser->getReqParamByKey('EMAIL'))).'",`EMAIL_CRC32`="'.crc32(strtolower($oUser->getReqParamByKey('EMAIL'))).'",`PWDHASH`="'.$oUser->getReqParamByKey('PWDHASH').'",`DATEMODIFIED`="'.$ts.'" WHERE `USERNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'" AND `USERID_SOURCE`="'.md5(strtolower($oUser->getReqParamByKey('USERNAME'))).'" AND `USERID`="'.crc32(md5(strtolower($oUser->getReqParamByKey('USERNAME')))).'" LIMIT 1;';
+							$options = [
+								'cost' => 9,
+							];
+							
+							
+							$tmp_pwdhash = password_hash($oUser->getReqParamByKey('PWDHASH'), PASSWORD_BCRYPT, $options);
+							
+							
+							
+							self::$query = 'UPDATE `users` SET `FIRSTNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('FIRSTNAME')).'",`LASTNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('LASTNAME')).'",`EMAIL`="'.$mysqli->real_escape_string(strtolower($oUser->getReqParamByKey('EMAIL'))).'",`EMAIL_CRC32`="'.crc32(strtolower($oUser->getReqParamByKey('EMAIL'))).'",`PWDHASH`="'.$tmp_pwdhash.'",`DATEMODIFIED`="'.$ts.'" WHERE `USERNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'" AND `USERID_SOURCE`="'.md5(strtolower($oUser->getReqParamByKey('USERNAME'))).'" AND `USERID`="'.crc32(md5(strtolower($oUser->getReqParamByKey('USERNAME')))).'" LIMIT 1;';
 						}else{
 							self::$query = 'UPDATE `users` SET `FIRSTNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('FIRSTNAME')).'",`LASTNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('LASTNAME')).'",`EMAIL`="'.$mysqli->real_escape_string(strtolower($oUser->getReqParamByKey('EMAIL'))).'",`EMAIL_CRC32`="'.crc32(strtolower($oUser->getReqParamByKey('EMAIL'))).'",`DATEMODIFIED`="'.$ts.'" WHERE `USERNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'" AND `USERID_SOURCE`="'.md5(strtolower($oUser->getReqParamByKey('USERNAME'))).'" AND `USERID`="'.crc32(md5(strtolower($oUser->getReqParamByKey('USERNAME')))).'" LIMIT 1;';
 						}
@@ -1280,15 +1838,22 @@ class database_integration {
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+					$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
 					if($mysqli->error){
+						//error_log("server database.inc.php we have error (2111)");
 						self::$query_exception_result='updatesettings=false';
+						
+						
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+						//
+						// CLOSE CONNECTION
+						$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);	
 					
 					}else{
 						//
 						// CLOSE CONNECTION
-						$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);					
+						//error_log("server database.inc.php we have NO error (2123)");
+						//$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);					
 						return $tmp_response;
 						
 					}
@@ -1297,6 +1862,7 @@ class database_integration {
 					//
 					// BEGIN TRANSACTION
 					//$mysqli->autocommit(FALSE);
+					self::$MYSQLi_queryType = 'SINGLET';
 					
 					//
 					// BUILD QUERY
@@ -1307,8 +1873,9 @@ class database_integration {
 							
 							$tmp_elementid_ARRAY = explode('|',$oUser->getReqParamByKey('ELEMENTID_PIPED'));
 							foreach($tmp_elementid_ARRAY as $key=>$val){
-								$dyn_tble_users = 'crnrstn_'.$mysqli->real_escape_string($val).'_users';
-								self::$query .= 'UPDATE `'.$dyn_tble_users.'` SET `IMAGE_NAME`="'.$oUser->getReqParamByKey('IMAGE_NAME').'",`IMAGE_WIDTH`="'.$oUser->getReqParamByKey('IMAGE_WIDTH').'",`IMAGE_HEIGHT`="'.$oUser->getReqParamByKey('IMAGE_HEIGHT').'",`EXTERNAL_URI_FORMATTED`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXTERNAL_URI_FORMATTED')).'",`DATEMODIFIED`="'.$ts.'" WHERE `USERNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'" AND `USERID_SOURCE`="'.$oUser->getReqParamByKey('USERID_SOURCE').'" AND `USERNAME_CRC32`="'.crc32($oUser->getReqParamByKey('USERNAME')).'" AND `USERID`="'.crc32($oUser->getReqParamByKey('USERID_SOURCE')).'" LIMIT 1;';
+								$dyn_tbl_users = 'crnrstn_'.$mysqli->real_escape_string($val).'_users';
+								self::$query .= 'UPDATE `'.$dyn_tbl_users.'` SET `IMAGE_NAME`="'.$oUser->getReqParamByKey('IMAGE_NAME').'",`IMAGE_WIDTH`="'.$oUser->getReqParamByKey('IMAGE_WIDTH').'",`IMAGE_HEIGHT`="'.$oUser->getReqParamByKey('IMAGE_HEIGHT').'",`EXTERNAL_URI_FORMATTED`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXTERNAL_URI_FORMATTED')).'",`DATEMODIFIED`="'.$ts.'" WHERE `USERNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'" AND `USERID_SOURCE`="'.$oUser->getReqParamByKey('USERID_SOURCE').'" AND `USERNAME_CRC32`="'.crc32($oUser->getReqParamByKey('USERNAME')).'" AND `USERID`="'.crc32($oUser->getReqParamByKey('USERID_SOURCE')).'" LIMIT 1;';
+								self::$MYSQLi_queryType = 'MULTI';
 								#self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
 							}
 						 }
@@ -1320,8 +1887,9 @@ class database_integration {
 							
 							$tmp_elementid_ARRAY = explode('|',$oUser->getReqParamByKey('ELEMENTID_PIPED'));
 							foreach($tmp_elementid_ARRAY as $key=>$val){
-								$dyn_tble_users = 'crnrstn_'.$mysqli->real_escape_string($val).'_users';
-								self::$query .= 'UPDATE `'.$dyn_tble_users.'` SET `EXTERNAL_URI_FORMATTED`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXTERNAL_URI_FORMATTED')).'",`DATEMODIFIED`="'.$ts.'" WHERE `USERNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'" AND `USERID_SOURCE`="'.$oUser->getReqParamByKey('USERID_SOURCE').'" AND `USERNAME_CRC32`="'.crc32($oUser->getReqParamByKey('USERNAME')).'" AND `USERID`="'.crc32($oUser->getReqParamByKey('USERID_SOURCE')).'" LIMIT 1;';
+								$dyn_tbl_users = 'crnrstn_'.$mysqli->real_escape_string($val).'_users';
+								self::$query .= 'UPDATE `'.$dyn_tbl_users.'` SET `EXTERNAL_URI_FORMATTED`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXTERNAL_URI_FORMATTED')).'",`DATEMODIFIED`="'.$ts.'" WHERE `USERNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'" AND `USERID_SOURCE`="'.$oUser->getReqParamByKey('USERID_SOURCE').'" AND `USERNAME_CRC32`="'.crc32($oUser->getReqParamByKey('USERNAME')).'" AND `USERID`="'.crc32($oUser->getReqParamByKey('USERID_SOURCE')).'" LIMIT 1;';
+								self::$MYSQLi_queryType = 'MULTI';
 								#self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
 							}
 						}
@@ -1329,7 +1897,15 @@ class database_integration {
 					
 					//
 					// PROCESS QUERY (OR PREPARE TRANSACTION FOR COMMIT)
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					switch(self::$MYSQLi_queryType){
+						case "SINGLET":
+							self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
+						break;
+						default:
+							$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+						break;
+					}
+					
 					
 					//
 					// COMMIT TRANSACTION
@@ -1348,7 +1924,7 @@ class database_integration {
 							}
 							
 							throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
-							
+							$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);
 						}
 						$ROWCNT++;
 				
@@ -1363,7 +1939,9 @@ class database_integration {
 //						// ROLL BACK DUE TO ERROR
 						//$mysqli->rollback();
 						self::$query_exception_result='updateuserprofile=false';	
+						
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+						$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);
 					}
 				
 					//
@@ -1376,16 +1954,17 @@ class database_integration {
 				case 'svc_retrieveUserAccnt_PlusNav':
 					//
 					// BUILD QUERY
-					self::$query = 'SELECT `users`.`USERNAME`,`users`.`USERID_SOURCE`,`users`.`USERNAME_DISPLAY`,`users`.`FIRSTNAME`,`users`.`LASTNAME`,`users`.`EMAIL`,`users`.`USER_PERMISSIONS_ID`,`users`.`LANGCODE`,`users`.`LASTLOGIN`,`users`.`SESSION_PERSIST`,`users`.`IMAGE_NAME`,`users`.`IMAGE_WIDTH`,`users`.`IMAGE_HEIGHT`,`users`.`ABOUT`,`users`.`EXTERNAL_URI_RAW`,`users`.`EXTERNAL_URI_FORMATTED` FROM `users` WHERE `users`.`USERNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'" AND `users`.`USERNAME_CRC32`="'.crc32($oUser->getReqParamByKey('USERNAME')).'" LIMIT 1;';
-					self::$query .= 'SELECT `user_comments`.`NOTEID_SOURCE`,`user_comments`.`SUBJECT`,`user_comments`.`NOTE_BACKLOG`,`user_comments`.`CLASSID_SOURCE`,`user_comments`.`METHODID_SOURCE`,`user_comments`.`REPLYTO_NOTEID`,`user_comments`.`PAGE_ELEMENT_NAME`,`user_comments`.`PAGE_ELEMENT_URI`,`user_comments`.`DATEMODIFIED`,`user_comments`.`DATECREATED` FROM `user_comments` WHERE `user_comments`.`USERNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'" AND `user_comments`.`USERNAME_CRC32`="'.crc32($oUser->getReqParamByKey('USERNAME')).'" AND `user_comments`.`ISACTIVE`="1" ORDER BY `user_comments`.`DATECREATED` DESC;';
+					self::$query = 'SELECT `users`.`USERNAME`,`users`.`ISACTIVE`,`users`.`USERID_SOURCE`,`users`.`USERNAME_DISPLAY`,`users`.`FIRSTNAME`,`users`.`LASTNAME`,`users`.`EMAIL`,`users`.`USER_PERMISSIONS_ID`,`users`.`LANGCODE`,`users`.`LASTLOGIN`,`users`.`SESSION_PERSIST`,`users`.`IMAGE_NAME`,`users`.`IMAGE_WIDTH`,`users`.`IMAGE_HEIGHT`,`users`.`ABOUT`,`users`.`EXTERNAL_URI_RAW`,`users`.`EXTERNAL_URI_FORMATTED` FROM `users` WHERE `users`.`USERNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'" AND `users`.`USERNAME_CRC32`="'.crc32($oUser->getReqParamByKey('USERNAME')).'" LIMIT 1;';
+					self::$query .= 'SELECT `user_notes`.`NOTEID_SOURCE`,`user_notes`.`ISACTIVE`,`user_notes`.`SUBJECT`,`user_notes`.`NOTE_BACKLOG`,`user_notes`.`CNT_LIKES`,`user_notes`.`CLASSID_SOURCE`,`user_notes`.`METHODID_SOURCE`,`user_notes`.`REPLYTO_NOTEID`,`user_notes`.`PAGE_ELEMENT_NAME`,`user_notes`.`PAGE_ELEMENT_URI`,`user_notes`.`DATEMODIFIED`,`user_notes`.`DATECREATED` FROM `user_notes` WHERE `user_notes`.`USERNAME`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('USERNAME')).'" AND `user_notes`.`USERNAME_CRC32`="'.crc32($oUser->getReqParamByKey('USERNAME')).'" AND `user_notes`.`ISACTIVE`!="0" ORDER BY `user_notes`.`DATECREATED` DESC;';
 					
 					if($queryType=='svc_retrieveUserAccnt_PlusNav'){
 						self::$query .= 'SELECT `crnrstn_class`.`CLASSID`,`crnrstn_class`.`NAME`,`crnrstn_class`.`URI`,`crnrstn_class`.`LANGCODE`,`crnrstn_method`.`METHODID`,`crnrstn_method`.`NAME`,`crnrstn_method`.`URI`,`crnrstn_method`.`ISACTIVE` FROM `crnrstn_class` LEFT OUTER JOIN `crnrstn_method` ON `crnrstn_class`.`CLASSID` = `crnrstn_method`.`CLASSID` WHERE `crnrstn_class`.`ISACTIVE`="1" ORDER BY `crnrstn_class`.`NAV_POSITION`,`crnrstn_method`.`NAV_POSITION`;';
 					}
 					
+					//error_log('/services/ database.inc.php (2403) :: svc_retrieveUserAccnt: '.self::$query);
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
 					if($mysqli->error){
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
 					
@@ -1399,6 +1978,7 @@ class database_integration {
 									foreach($row as $fieldPos=>$value){
 										//
 										// STORE RESULT
+										//error_log("/services/ database.inc.php (2424) ROWCNT[".$ROWCNT."] FIELDPOS[".$fieldPos."] VALUE[".$value."]");
 										self::$result_ARRAY[$ROWCNT][$fieldPos]=$value;
 										
 									}
@@ -1469,6 +2049,130 @@ class database_integration {
 						
 					}
 				break;
+				case 'svc_postUserCommentReply':
+					//error_log("/services/database.inc.php (1989) svc_postUserCommentReply");
+					
+					if(strlen($oUser->returnCommentParam('CLASSID_SOURCE'))>10){
+						$tmp_destid = $oUser->returnCommentParam('CLASSID_SOURCE');
+					}else{
+						$tmp_destid = $oUser->returnCommentParam('METHODID_SOURCE');
+					}
+					
+					//
+					// PREPARE HASHES
+					$seednum = $tmp_destid.$oUser->returnCommentParam('USERNAME').microtime().rand();
+					$seednum_full = md5($seednum);
+					
+					//
+					// BUILD QUERY
+					self::$query = 'INSERT INTO `crnrstn_'.$tmp_destid.'_notes` (`NOTEID_SOURCE`,`NOTEID_CRC32`,`USERNAME`,`USERNAME_CRC32`,`REPLYTO_NOTEID`,`SUBJECT`,`NOTE_STYLED`,`NOTE_RAW`,`NOTE_ELEM_TT`,`NOTE_BACKLOG`,`STYLED_CHAR_CNT`,`RAW_CHAR_CNT`,`DATEMODIFIED`) VALUES ("'.$seednum_full.'","'.crc32($seednum_full).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'","'.crc32($oUser->returnCommentParam('USERNAME')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('REPLYTO_NOTEID')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('SUBJECT')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_STYLED')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_RAW')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_ELEM_TT')).'","'.$oUser->returnCommentParam('NOTE_BACKLOG').'","'.$oUser->returnCommentParam('STYLED_CHAR_CNT').'","'.$oUser->returnCommentParam('RAW_CHAR_CNT').'","'.$ts.'");';
+	
+					$seednum_full_user = md5($oUser->returnCommentParam('USERNAME'));
+					//error_log("/services/ database.inc.php (2007) USER_ISUNIQUE:".$oUser->returnCommentParam('USER_ISUNIQUE'));
+					
+					//
+					// GOING TO HAVE TO EXECUTE AN EXTRA SQL STATEMENT TO CONFIRM USER_ISUNIQUE.
+					// PICK UP HERE....
+					if($oUser->returnCommentParam('USER_ISUNIQUE')=='1'){
+						self::$query .= 'INSERT INTO `crnrstn_'.$tmp_destid.'_users` (`USERNAME`,`USERID_SOURCE`,`USERNAME_CRC32`,`USERID`,`USERNAME_DISPLAY`,`IMAGE_NAME`,`IMAGE_WIDTH`,`IMAGE_HEIGHT`,`EXTERNAL_URI_FORMATTED`,`DATEMODIFIED`) VALUES ("'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'","'.$seednum_full_user.'","'.crc32(strtolower($oUser->returnCommentParam('USERNAME'))).'","'.crc32($seednum_full_user).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME_DISPLAY')).'","'.$oUser->returnCommentParam('IMAGE_NAME').'","'.$oUser->returnCommentParam('IMAGE_WIDTH').'","'.$oUser->returnCommentParam('IMAGE_HEIGHT').'","'.$mysqli->real_escape_string($oUser->returnCommentParam('EXTERNAL_URI_FORMATTED')).'","'.$ts.'");';
+					}
+										
+					if(strlen($oUser->returnCommentParam('NOTE_ELEM_SEARCH'))>1){
+						self::$query .= 'INSERT INTO `crnrstn_ugc_search` (`NOTEID_SOURCE`,`NOTEID_CRC32`,`NOTE_ELEM_SEARCH`,`SUBJECT`,`CLASSID_SOURCE`,`METHODID_SOURCE`,`DATEMODIFIED`) VALUES ("'.$seednum_full.'","'.crc32($seednum_full).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_ELEM_SEARCH')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('SUBJECT_SEARCH')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('CLASSID_SOURCE')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('METHODID_SOURCE')).'","'.$ts.'");';
+					}
+					
+					self::$query .= 'INSERT INTO `user_notes` (`NOTEID_SOURCE`,`NOTEID_CRC32`,`USERNAME`,
+					`USERNAME_CRC32`,`SUBJECT`,`NOTE_BACKLOG`,`HAS_CODE`,`PUBLISH_ME`,`CLASSID_SOURCE`,`METHODID_SOURCE`,`REPLYTO_NOTEID`,
+					`PAGE_ELEMENT_NAME`,`PAGE_ELEMENT_URI`,`REMOTE_ADDR`,`SERVER_ADDR`,				
+					`DATEMODIFIED`) VALUES ("'.$seednum_full.'","'.crc32($seednum_full).'",
+					"'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'",
+					"'.crc32($oUser->returnCommentParam('USERNAME')).'",
+					"'.$mysqli->real_escape_string($oUser->returnCommentParam('SUBJECT')).'",
+					"'.$oUser->returnCommentParam('NOTE_BACKLOG').'",
+					"'.$oUser->returnCommentParam('HAS_CODE').'",
+					"'.$oUser->returnCommentParam('PUBLISH_ME').'",
+					"'.$mysqli->real_escape_string($oUser->returnCommentParam('CLASSID_SOURCE')).'",
+					"'.$mysqli->real_escape_string($oUser->returnCommentParam('METHODID_SOURCE')).'",
+					"'.$mysqli->real_escape_string($oUser->returnCommentParam('REPLYTO_NOTEID')).'",
+					"'.$mysqli->real_escape_string($oUser->returnCommentParam('PAGE_ELEMENT_NAME')).'",
+					"'.$mysqli->real_escape_string($oUser->returnCommentParam('PAGE_ELEMENT_URI')).'",
+					INET_ATON("'.$oUser->returnCommentParam('REMOTE_ADDR').'"),
+					INET_ATON("'.$oUser->returnCommentParam('SERVER_ADDR').'"),
+					"'.$ts.'");';
+					
+									
+					if($oUser->returnCommentParam('PUBLISH_ME')=='1'){
+						$tmp_feedback = 'Please review this note with the subject of '.$oUser->returnCommentParam('SUBJECT').' at your earliest convenience as '.$oUser->returnCommentParam('USERNAME').' desires that it be published for consumption by the general public.
+						<br>Note ::<br>
+						'.$oUser->returnCommentParam('NOTE_STYLED').'
+						TootTips ::<br>
+						'.$oUser->returnCommentParam('NOTE_ELEM_TT').'
+						';
+						self::$query .= 'INSERT INTO `user_feedback` (`FID_SOURCE`,`FID_CRC32`,`FEEDBACK_SEARCH`,
+						`FB_BUGREPORT`,`FB_FEATREQUEST`,`FB_GENQUESTION`,`FB_GENCOMMENT`,`FB_REPORTSPAM`,`OPTIN`,`NAME`,
+						`FEEDBACK`,`USERNAME`,`CLASSID_SOURCE`,`METHODID_SOURCE`,`NOTEID_SOURCE`,`URI`,`REMOTE_ADDR`,
+						`SERVER_ADDR`,`DATEMODIFIED`) VALUES ("'.$seednum_full.'","'.crc32($seednum_full).'",
+						"'.$mysqli->real_escape_string($this->search_FillerSanitize($tmp_feedback)).'","0","1","1","0","0","1",
+						"'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME_DISPLAY')).'",
+						"'.$mysqli->real_escape_string($tmp_feedback).'",
+						"'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'",
+						"'.$mysqli->real_escape_string($oUser->returnCommentParam('CLASSID_SOURCE')).'",
+						"'.$mysqli->real_escape_string($oUser->returnCommentParam('METHODID_SOURCE')).'",
+						"'.$seednum_full.'","'.$mysqli->real_escape_string($oUser->returnCommentParam('PAGE_ELEMENT_URI')).'",
+						INET_ATON("'.$oUser->returnCommentParam('REMOTE_ADDR').'"),
+						INET_ATON("'.$oUser->returnCommentParam('SERVER_ADDR').'"),"'.$ts.'");';
+				
+					}
+					
+					//
+					// PROCESS QUERY
+					//error_log("/services/database.inc.php (2061) query: ".self::$query);
+					$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+
+					//
+					// COMMIT TRANSACTION
+					//$mysqli->commit();
+					
+					$ROWCNT=0;
+					do {
+						if($mysqli->error){
+//							//
+//							// ROLL BACK DUE TO ERROR
+							//$mysqli->rollback();
+							if($ROWCNT>0){
+								self::$query_exception_result='usernotereply=false';
+							}else{
+								self::$query_exception_result='usernotereply=falseall';
+							}
+							
+							throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+							$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);
+							
+						}
+						$ROWCNT++;
+				
+						if ($mysqli->more_results()) {
+							//
+							// END OF RECORD. MORE TO FOLLOW.
+						}
+					} while ($mysqli->next_result());
+				
+					if($mysqli->error){
+//						//
+//						// ROLL BACK DUE TO ERROR
+						//$mysqli->rollback();
+						self::$query_exception_result='usernotereply=false';
+						
+						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+						$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);
+					}
+				
+					//
+					// CLOSE CONNECTION
+					$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);
+					return "usernotereply=true";
+				
+				break;
 				case 'svc_postUserComment':					
 					//
 					// STRUCTURE FOR COMMENTS/USERS TABLE NAMES
@@ -1488,23 +2192,66 @@ class database_integration {
 					
 					//
 					// BUILD QUERY
-					self::$query = 'INSERT INTO `crnrstn_'.$tmp_destid.'_comments` (`NOTEID_SOURCE`,`NOTEID_CRC32`,`USERNAME`,`USERNAME_CRC32`,`SUBJECT`,`NOTE_STYLED`,`NOTE_RAW`,`NOTE_ELEM_TT`,`NOTE_BACKLOG`,`STYLED_CHAR_CNT`,`RAW_CHAR_CNT`,`DATEMODIFIED`) VALUES ("'.$seednum_full.'","'.crc32($seednum_full).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'","'.crc32($oUser->returnCommentParam('USERNAME')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('SUBJECT')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_STYLED')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_RAW')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_ELEM_TT')).'","'.$oUser->returnCommentParam('NOTE_BACKLOG').'","'.$oUser->returnCommentParam('STYLED_CHAR_CNT').'","'.$oUser->returnCommentParam('RAW_CHAR_CNT').'","'.$ts.'");';
+					self::$query = 'INSERT INTO `crnrstn_'.$tmp_destid.'_notes` (`NOTEID_SOURCE`,`NOTEID_CRC32`,`USERNAME`,`USERNAME_CRC32`,`SUBJECT`,`NOTE_STYLED`,`NOTE_RAW`,`NOTE_ELEM_TT`,`NOTE_BACKLOG`,`STYLED_CHAR_CNT`,`RAW_CHAR_CNT`,`DATEMODIFIED`) VALUES ("'.$seednum_full.'","'.crc32($seednum_full).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'","'.crc32($oUser->returnCommentParam('USERNAME')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('SUBJECT')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_STYLED')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_RAW')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_ELEM_TT')).'","'.$oUser->returnCommentParam('NOTE_BACKLOG').'","'.$oUser->returnCommentParam('STYLED_CHAR_CNT').'","'.$oUser->returnCommentParam('RAW_CHAR_CNT').'","'.$ts.'");';
 	
 					$seednum_full_user = md5($oUser->returnCommentParam('USERNAME'));
-					
+					//error_log("/services/ database.inc.php (1478) USER_ISUNIQUE:".$oUser->returnCommentParam('USER_ISUNIQUE'));
 					if($oUser->returnCommentParam('USER_ISUNIQUE')=='1'){
 						self::$query .= 'INSERT INTO `crnrstn_'.$tmp_destid.'_users` (`USERNAME`,`USERID_SOURCE`,`USERNAME_CRC32`,`USERID`,`USERNAME_DISPLAY`,`IMAGE_NAME`,`IMAGE_WIDTH`,`IMAGE_HEIGHT`,`EXTERNAL_URI_FORMATTED`,`DATEMODIFIED`) VALUES ("'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'","'.$seednum_full_user.'","'.crc32(strtolower($oUser->returnCommentParam('USERNAME'))).'","'.crc32($seednum_full_user).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME_DISPLAY')).'","'.$oUser->returnCommentParam('IMAGE_NAME').'","'.$oUser->returnCommentParam('IMAGE_WIDTH').'","'.$oUser->returnCommentParam('IMAGE_HEIGHT').'","'.$mysqli->real_escape_string($oUser->returnCommentParam('EXTERNAL_URI_FORMATTED')).'","'.$ts.'");';
 					}
 										
 					if(strlen($oUser->returnCommentParam('NOTE_ELEM_SEARCH'))>1){
-						self::$query .= 'INSERT INTO `crnrstn_ugc_search` (`NOTEID_SOURCE`,`NOTEID_CRC32`,`NOTE_ELEM_SEARCH`,`SUBJECT`,`CLASSID_SOURCE`,`METHODID_SOURCE`,`DATEMODIFIED`) VALUES ("'.$seednum_full.'","'.crc32($seednum_full).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_ELEM_SEARCH')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('SUBJECT_SEARCH')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('CLASSID_SOURCE')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('METHODID_SOURCE')).'","'.$ts.'");';
+						self::$query .= 'INSERT INTO `crnrstn_ugc_search` (`NOTEID_SOURCE`,`NOTEID_CRC32`,`NOTE_ELEM_SEARCH`,`SUBJECT`,`SUBJECT_SEARCH`,`NOTE_SEARCH`,`CLASSID_SOURCE`,`METHODID_SOURCE`,`DATEMODIFIED`) VALUES ("'.$seednum_full.'","'.crc32($seednum_full).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_ELEM_SEARCH')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('SUBJECT')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('SUBJECT_SEARCH')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_SEARCH')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('CLASSID_SOURCE')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('METHODID_SOURCE')).'","'.$ts.'");';
 					}
 					
-					self::$query .= 'INSERT INTO `user_comments` (`NOTEID_SOURCE`,`NOTEID_CRC32`,`USERNAME`,`USERNAME_CRC32`,`SUBJECT`,`NOTE_BACKLOG`,`CLASSID_SOURCE`,`METHODID_SOURCE`,`PAGE_ELEMENT_NAME`,`PAGE_ELEMENT_URI`,`DATEMODIFIED`) VALUES ("'.$seednum_full.'","'.crc32($seednum_full).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'","'.crc32($oUser->returnCommentParam('USERNAME')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('SUBJECT')).'","'.$oUser->returnCommentParam('NOTE_BACKLOG').'","'.$mysqli->real_escape_string($oUser->returnCommentParam('CLASSID_SOURCE')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('METHODID_SOURCE')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('PAGE_ELEMENT_NAME')).'","'.$mysqli->real_escape_string($oUser->returnCommentParam('PAGE_ELEMENT_URI')).'","'.$ts.'");';
+					self::$query .= 'INSERT INTO `user_notes` (`NOTEID_SOURCE`,`NOTEID_CRC32`,`USERNAME`,
+					`USERNAME_CRC32`,`SUBJECT`,`NOTE_BACKLOG`,`HAS_CODE`,`PUBLISH_ME`,`CLASSID_SOURCE`,`METHODID_SOURCE`,
+					`PAGE_ELEMENT_NAME`,`PAGE_ELEMENT_URI`,`REMOTE_ADDR`,`SERVER_ADDR`,
+					
+					`DATEMODIFIED`) VALUES ("'.$seednum_full.'","'.crc32($seednum_full).'",
+					"'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'",
+					"'.crc32($oUser->returnCommentParam('USERNAME')).'",
+					"'.$mysqli->real_escape_string($oUser->returnCommentParam('SUBJECT')).'",
+					"'.$oUser->returnCommentParam('NOTE_BACKLOG').'",
+					"'.$oUser->returnCommentParam('HAS_CODE').'",
+					"'.$oUser->returnCommentParam('PUBLISH_ME').'",
+					"'.$mysqli->real_escape_string($oUser->returnCommentParam('CLASSID_SOURCE')).'",
+					"'.$mysqli->real_escape_string($oUser->returnCommentParam('METHODID_SOURCE')).'",
+					"'.$mysqli->real_escape_string($oUser->returnCommentParam('PAGE_ELEMENT_NAME')).'",
+					"'.$mysqli->real_escape_string($oUser->returnCommentParam('PAGE_ELEMENT_URI')).'",
+					INET_ATON("'.$oUser->returnCommentParam('REMOTE_ADDR').'"),
+					INET_ATON("'.$oUser->returnCommentParam('SERVER_ADDR').'"),
+					"'.$ts.'");';
+					
+									
+					if($oUser->returnCommentParam('PUBLISH_ME')=='1'){
+						//error_log("PUBLISH ME!");
+						$tmp_feedback = 'Please review this note with the subject of '.$oUser->returnCommentParam('SUBJECT').' at your earliest convenience as '.$oUser->returnCommentParam('USERNAME').' desires that it be published for consumption by the general public.
+						<br>Note ::<br>
+						'.$oUser->returnCommentParam('NOTE_STYLED').'
+						TootTips ::<br>
+						'.$oUser->returnCommentParam('NOTE_ELEM_TT').'
+						';
+						self::$query .= 'INSERT INTO `user_feedback` (`FID_SOURCE`,`FID_CRC32`,`FEEDBACK_SEARCH`,
+						`FB_BUGREPORT`,`FB_FEATREQUEST`,`FB_GENQUESTION`,`FB_GENCOMMENT`,`FB_REPORTSPAM`,`OPTIN`,`NAME`,
+						`FEEDBACK`,`USERNAME`,`CLASSID_SOURCE`,`METHODID_SOURCE`,`NOTEID_SOURCE`,`URI`,`REMOTE_ADDR`,
+						`SERVER_ADDR`,`DATEMODIFIED`) VALUES ("'.$seednum_full.'","'.crc32($seednum_full).'",
+						"'.$mysqli->real_escape_string($this->search_FillerSanitize($tmp_feedback)).'","0","1","1","0","0","1",
+						"'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME_DISPLAY')).'",
+						"'.$mysqli->real_escape_string($tmp_feedback).'",
+						"'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'",
+						"'.$mysqli->real_escape_string($oUser->returnCommentParam('CLASSID_SOURCE')).'",
+						"'.$mysqli->real_escape_string($oUser->returnCommentParam('METHODID_SOURCE')).'",
+						"'.$seednum_full.'","'.$mysqli->real_escape_string($oUser->returnCommentParam('PAGE_ELEMENT_URI')).'",
+						INET_ATON("'.$oUser->returnCommentParam('REMOTE_ADDR').'"),
+						INET_ATON("'.$oUser->returnCommentParam('SERVER_ADDR').'"),"'.$ts.'");';
+				
+					}
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					//error_log("/services/database.inc.php (1532) query: ".self::$query);
+					$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
 
 					//
 					// COMMIT TRANSACTION
@@ -1523,6 +2270,7 @@ class database_integration {
 							}
 							
 							throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+							$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);	
 							
 						}
 						$ROWCNT++;
@@ -1538,7 +2286,9 @@ class database_integration {
 //						// ROLL BACK DUE TO ERROR
 						//$mysqli->rollback();
 						self::$query_exception_result='usernotesubmit=false';
+							
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+						$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);
 					}
 				
 					//
@@ -1557,17 +2307,50 @@ class database_integration {
 					
 					//
 					// BUILD QUERY
-					self::$query = 'UPDATE `crnrstn_'.$tmp_destid.'_comments` SET `SUBJECT`="'.$mysqli->real_escape_string($oUser->returnCommentParam('SUBJECT')).'",`NOTE_STYLED`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_STYLED')).'",`NOTE_RAW`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_RAW')).'",`NOTE_ELEM_TT`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_ELEM_TT')).'",`NOTE_BACKLOG`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_BACKLOG')).'",`STYLED_CHAR_CNT`="'.$mysqli->real_escape_string($oUser->returnCommentParam('STYLED_CHAR_CNT')).'",`RAW_CHAR_CNT`="'.$mysqli->real_escape_string($oUser->returnCommentParam('RAW_CHAR_CNT')).'",`DATEMODIFIED`="'.$ts.'" WHERE `NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `NOTEID_CRC32`="'.crc32($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `USERNAME`="'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'" LIMIT 1;';
+					self::$query = 'UPDATE `crnrstn_'.$tmp_destid.'_notes` SET `SUBJECT`="'.$mysqli->real_escape_string($oUser->returnCommentParam('SUBJECT')).'",`NOTE_STYLED`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_STYLED')).'",`NOTE_RAW`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_RAW')).'",`NOTE_ELEM_TT`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_ELEM_TT')).'",`NOTE_BACKLOG`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_BACKLOG')).'",`STYLED_CHAR_CNT`="'.$mysqli->real_escape_string($oUser->returnCommentParam('STYLED_CHAR_CNT')).'",`RAW_CHAR_CNT`="'.$mysqli->real_escape_string($oUser->returnCommentParam('RAW_CHAR_CNT')).'",`DATEMODIFIED`="'.$ts.'" WHERE `NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `NOTEID_CRC32`="'.crc32($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `USERNAME`="'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'" LIMIT 1;';
 					 
-					self::$query .= 'UPDATE `user_comments` SET `SUBJECT`="'.$mysqli->real_escape_string($oUser->returnCommentParam('SUBJECT')).'",`NOTE_BACKLOG`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_BACKLOG')).'",`DATEMODIFIED`="'.$ts.'" WHERE `NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `NOTEID_CRC32`="'.crc32($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `USERNAME`="'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'" LIMIT 1;';
+					self::$query .= 'UPDATE `user_notes` SET `SUBJECT`="'.$mysqli->real_escape_string($oUser->returnCommentParam('SUBJECT')).'",
+					`NOTE_BACKLOG`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_BACKLOG')).'",
+					`HAS_CODE`="'.$mysqli->real_escape_string($oUser->returnCommentParam('HAS_CODE')).'",
+					`PUBLISH_ME`="'.$mysqli->real_escape_string($oUser->returnCommentParam('PUBLISH_ME')).'",
+					`REMOTE_ADDR`=INET_ATON("'.$oUser->returnCommentParam('REMOTE_ADDR').'"),`SERVER_ADDR`=INET_ATON("'.$oUser->returnCommentParam('SERVER_ADDR').'"),`DATEMODIFIED`="'.$ts.'" WHERE `NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `NOTEID_CRC32`="'.crc32($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `USERNAME`="'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'" LIMIT 1;';
 					
 					if(strlen($oUser->returnCommentParam('NOTE_ELEM_SEARCH'))>1){
-						self::$query .= 'UPDATE `crnrstn_ugc_search` SET `NOTE_ELEM_SEARCH`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_ELEM_SEARCH')).'",`SUBJECT`="'.$mysqli->real_escape_string($oUser->returnCommentParam('SUBJECT_SEARCH')).'",`DATEMODIFIED`="'.$ts.'" WHERE `NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `NOTEID_CRC32`="'.crc32($oUser->returnCommentParam('NOTEID_SOURCE')).'" LIMIT 1;';
+						self::$query .= 'UPDATE `crnrstn_ugc_search` SET `NOTE_ELEM_SEARCH`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_ELEM_SEARCH')).'",`SUBJECT`="'.$mysqli->real_escape_string($oUser->returnCommentParam('SUBJECT')).'",`SUBJECT_SEARCH`="'.$mysqli->real_escape_string($oUser->returnCommentParam('SUBJECT_SEARCH')).'",`NOTE_SEARCH`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTE_SEARCH')).'",`DATEMODIFIED`="'.$ts.'" WHERE `NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `NOTEID_CRC32`="'.crc32($oUser->returnCommentParam('NOTEID_SOURCE')).'" LIMIT 1;';
 					}
 					
+					if($oUser->returnCommentParam('PUBLISH_ME')=='1'){
+						//
+						// PREPARE HASHES
+						$seednum = $tmp_destid.$oUser->returnCommentParam('USERNAME').microtime().rand();
+						$seednum_full = md5($seednum);
+					
+						$tmp_feedback = 'Please review this note with the subject of <strong>'.$oUser->returnCommentParam('SUBJECT').'</strong> at your earliest convenience as '.$oUser->returnCommentParam('USERNAME').' desires that it be published for consumption by the general public.
+						<br>Note ::<br>
+						'.$oUser->returnCommentParam('NOTE_STYLED').'
+						TootTips ::<br>
+						'.$oUser->returnCommentParam('NOTE_ELEM_TT').'
+						';
+						
+						self::$query .= 'INSERT INTO `user_feedback` (`FID_SOURCE`,`FID_CRC32`,`FEEDBACK_SEARCH`,
+						`FB_BUGREPORT`,`FB_FEATREQUEST`,`FB_GENQUESTION`,`FB_GENCOMMENT`,`FB_REPORTSPAM`,`OPTIN`,
+						`NAME`,`FEEDBACK`,`USERNAME`,`CLASSID_SOURCE`,`METHODID_SOURCE`,`NOTEID_SOURCE`,
+						`REMOTE_ADDR`,`SERVER_ADDR`,`DATEMODIFIED`) VALUES (
+						"'.$seednum_full.'","'.crc32($seednum_full).'",
+						"'.$mysqli->real_escape_string($this->search_FillerSanitize($tmp_feedback)).'",
+						"0","1","1","0","0","1","'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME_DISPLAY')).'",
+						"'.$mysqli->real_escape_string($tmp_feedback).'",
+						"'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'",
+						"'.$mysqli->real_escape_string($oUser->returnCommentParam('CLASSID_SOURCE')).'",
+						"'.$mysqli->real_escape_string($oUser->returnCommentParam('METHODID_SOURCE')).'",
+						"'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTEID_SOURCE')).'",
+						INET_ATON("'.$oUser->returnCommentParam('REMOTE_ADDR').'"),
+						INET_ATON("'.$oUser->returnCommentParam('SERVER_ADDR').'"),"'.$ts.'");';
+				
+					}
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
 
 					//
 					// COMMIT TRANSACTION
@@ -1586,6 +2369,7 @@ class database_integration {
 							}
 							
 							throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+							$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);		
 							
 						}
 						$ROWCNT++;
@@ -1601,7 +2385,9 @@ class database_integration {
 //						// ROLL BACK DUE TO ERROR
 						//$mysqli->rollback();
 						self::$query_exception_result='usercommentupdate=false';
+						
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+						$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);		
 					}
 				
 					//
@@ -1619,13 +2405,13 @@ class database_integration {
 					
 					//
 					// BUILD QUERY
-					self::$query = 'UPDATE `crnrstn_'.$tmp_destid.'_comments` SET `ISACTIVE`="0",`DATEMODIFIED`="'.$ts.'" WHERE `NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `NOTEID_CRC32`="'.crc32($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `USERNAME`="'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'" LIMIT 1;';
-					self::$query .= 'UPDATE `user_comments` SET `ISACTIVE`="0",`DATEMODIFIED`="'.$ts.'" WHERE `NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `NOTEID_CRC32`="'.crc32($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `USERNAME`="'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'" LIMIT 1;';
+					self::$query = 'UPDATE `crnrstn_'.$tmp_destid.'_notes` SET `ISACTIVE`="0",`DATEMODIFIED`="'.$ts.'" WHERE `NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `NOTEID_CRC32`="'.crc32($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `USERNAME`="'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'" LIMIT 1;';
+					self::$query .= 'UPDATE `user_notes` SET `ISACTIVE`="0",`DATEMODIFIED`="'.$ts.'" WHERE `NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `NOTEID_CRC32`="'.crc32($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `USERNAME`="'.$mysqli->real_escape_string($oUser->returnCommentParam('USERNAME')).'" LIMIT 1;';
 					self::$query .= 'UPDATE `crnrstn_ugc_search` SET `ISACTIVE`="0",`DATEMODIFIED`="'.$ts.'" WHERE `NOTEID_SOURCE`="'.$mysqli->real_escape_string($oUser->returnCommentParam('NOTEID_SOURCE')).'" AND `NOTEID_CRC32`="'.crc32($oUser->returnCommentParam('NOTEID_SOURCE')).'" LIMIT 1;';
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
 
 					//
 					// COMMIT TRANSACTION
@@ -1644,6 +2430,7 @@ class database_integration {
 							}
 							
 							throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+							$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);	
 							
 						}
 						$ROWCNT++;
@@ -1659,7 +2446,9 @@ class database_integration {
 //						// ROLL BACK DUE TO ERROR
 						//$mysqli->rollback();
 						self::$query_exception_result='usercommentdelete=false';
+						
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+						$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);	
 					}
 				
 					//
@@ -1682,6 +2471,7 @@ class database_integration {
 						//
 						// BUILD QUERY
 						self::$query = 'UPDATE `crnrstn_class` SET `NAME`="'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'name')).'",`NAME_SEARCH`="'.$mysqli->real_escape_string($this->search_FillerSanitize(strtolower($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'name')))).'",`DESCRIPTION`="'.$mysqli->real_escape_string(htmlentities($this->clearDblBR($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'description')))).'",`DESCRIPTION_SEARCH`="'.$mysqli->real_escape_string($this->search_FillerSanitize($this->clearDblBR(strtolower($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'description'))))).'",`VERSION`="'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'version')).'",`URI`="'.$mysqli->real_escape_string(strtolower(trim($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'uri')))).'",`LANGCODE`="'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'langcode')).'",`DATEMODIFIED`="'.$ts.'" WHERE `CLASSID`="'.crc32($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'c')).'" AND `CLASSID_SOURCE`="'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'c')).'" LIMIT 1;';
+						
 					}
 					
 					//
@@ -1747,7 +2537,6 @@ class database_integration {
 					
 					//
 					// PROCESS QUERY
-					//error_log("crnrstn database.inc.php (1587) query->[".self::$query."]");
 					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
 					if($mysqli->error){
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
@@ -1766,8 +2555,8 @@ class database_integration {
 					if($oUser->getReqParamByKey('EXAMPLEID')!=''){
 						//
 						// UPDATE EXISTING EXAMPLE
-						if($oUser->getReqParamByKey('EXAMPLE_RAW')!=''){
-							self::$query = 'UPDATE `crnrstn_examples` SET `TITLE`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('TITLE')).'",`TITLE_SEARCH`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('TITLE_SEARCH')).'",`EXAMPLE_FORMATTED`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_FORMATTED')).'",`EXAMPLE_RAW`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_RAW')).'",`EXAMPLE_SEARCH`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_SEARCH')).'",`DESCRIPTION`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('DESCRIPTION')).'",`DESCRIPTION_SEARCH`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('DESCRIPTION_SEARCH')).'",`URI`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('URI')).'",`EXAMPLE_ELEM_TT`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_ELEM_TT')).'",`CHAR_CNT_FORMATTED`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_FORMATTED')).'",`CHAR_CNT_RAW`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_RAW')).'",`CHAR_CNT_SEARCH`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_SEARCH')).'",`DATEMODIFIED`="'.$ts.'" WHERE `EXAMPLEID`="'.$oUser->getReqParamByKey('EXAMPLEID').'" AND `EXAMPLEID_SOURCE`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLEID_SOURCE')).'" LIMIT 1;';
+						if($oUser->getReqParamByKey('EXAMPLE_RAW')!='' && $oUser->getReqParamByKey('EXAMPLE_RAW')!='DELETE'){
+							self::$query = 'UPDATE `crnrstn_examples` SET `TITLE`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('TITLE')).'",`TITLE_SEARCH`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('TITLE_SEARCH')).'",`EXAMPLE_FORMATTED`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_FORMATTED')).'",`EXAMPLE_RAW`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_RAW')).'",`EXAMPLE_SEARCH`="'.$mysqli->real_escape_string($this->search_FillerSanitize($oUser->getReqParamByKey('EXAMPLE_SEARCH'))).'",`DESCRIPTION`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('DESCRIPTION')).'",`DESCRIPTION_SEARCH`="'.$mysqli->real_escape_string($this->search_FillerSanitize($oUser->getReqParamByKey('DESCRIPTION_SEARCH'))).'",`URI`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('URI')).'",`EXAMPLE_ELEM_TT`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_ELEM_TT')).'",`CHAR_CNT_FORMATTED`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_FORMATTED')).'",`CHAR_CNT_RAW`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_RAW')).'",`CHAR_CNT_SEARCH`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_SEARCH')).'",`DATEMODIFIED`="'.$ts.'" WHERE `EXAMPLEID`="'.$oUser->getReqParamByKey('EXAMPLEID').'" AND `EXAMPLEID_SOURCE`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLEID_SOURCE')).'" LIMIT 1;';
 							
 						}else{
 							self::$query = 'UPDATE `crnrstn_examples` SET `ISACTIVE`="0",`DATEMODIFIED`="'.$ts.'" WHERE `EXAMPLEID`="'.$oUser->getReqParamByKey('EXAMPLEID').'" AND `EXAMPLEID_SOURCE`="'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLEID_SOURCE')).'" LIMIT 1;';
@@ -1784,12 +2573,12 @@ class database_integration {
 							//
 							// QUERY FOR NEW SPECIFICATION PROVIDED (CLASS)
 							if($oUser->getReqParamByKey('CLASSID')!=''){
-								self::$query = 'INSERT INTO `crnrstn_examples` (`EXAMPLEID`,`EXAMPLEID_SOURCE`,`CLASSID`,`TITLE`,`TITLE_SEARCH`,`EXAMPLE_FORMATTED`,`EXAMPLE_RAW`,`EXAMPLE_SEARCH`,`DESCRIPTION`,`DESCRIPTION_SEARCH`,`URI`,`EXAMPLE_ELEM_TT`,`CHAR_CNT_FORMATTED`,`CHAR_CNT_RAW`,`CHAR_CNT_SEARCH`,`DATEMODIFIED`) VALUES ("'.crc32($seednum_mini).'","'.$seednum_mini.'","'.$oUser->getReqParamByKey('CLASSID').'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('TITLE')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('TITLE_SEARCH')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_FORMATTED')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_RAW')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_SEARCH')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('DESCRIPTION')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('DESCRIPTION_SEARCH')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('URI')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_ELEM_TT')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_FORMATTED')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_RAW')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_SEARCH')).'","'.$ts.'");';
+								self::$query = 'INSERT INTO `crnrstn_examples` (`EXAMPLEID`,`EXAMPLEID_SOURCE`,`CLASSID`,`TITLE`,`TITLE_SEARCH`,`EXAMPLE_FORMATTED`,`EXAMPLE_RAW`,`EXAMPLE_SEARCH`,`DESCRIPTION`,`DESCRIPTION_SEARCH`,`URI`,`EXAMPLE_ELEM_TT`,`CHAR_CNT_FORMATTED`,`CHAR_CNT_RAW`,`CHAR_CNT_SEARCH`,`DATEMODIFIED`) VALUES ("'.crc32($seednum_mini).'","'.$seednum_mini.'","'.$oUser->getReqParamByKey('CLASSID').'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('TITLE')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('TITLE_SEARCH')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_FORMATTED')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_RAW')).'","'.$mysqli->real_escape_string($this->search_FillerSanitize($oUser->getReqParamByKey('EXAMPLE_SEARCH'))).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('DESCRIPTION')).'","'.$mysqli->real_escape_string($this->search_FillerSanitize($oUser->getReqParamByKey('DESCRIPTION_SEARCH'))).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('URI')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_ELEM_TT')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_FORMATTED')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_RAW')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_SEARCH')).'","'.$ts.'");';
 							}else{
 								//
 								// QUERY FOR NEW SPECIFICATION PROVIDED (METHOD)
 								if($oUser->getReqParamByKey('METHODID')!=''){
-									self::$query = 'INSERT INTO `crnrstn_examples` (`EXAMPLEID`,`EXAMPLEID_SOURCE`,`METHODID`,`TITLE`,`TITLE_SEARCH`,`EXAMPLE_FORMATTED`,`EXAMPLE_RAW`,`EXAMPLE_SEARCH`,`DESCRIPTION`,`DESCRIPTION_SEARCH`,`URI`,`EXAMPLE_ELEM_TT`,`CHAR_CNT_FORMATTED`,`CHAR_CNT_RAW`,`CHAR_CNT_SEARCH`,`DATEMODIFIED`) VALUES ("'.crc32($seednum_mini).'","'.$seednum_mini.'","'.$oUser->getReqParamByKey('METHODID').'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('TITLE')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('TITLE_SEARCH')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_FORMATTED')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_RAW')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_SEARCH')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('DESCRIPTION')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('DESCRIPTION_SEARCH')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('URI')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_ELEM_TT')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_FORMATTED')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_RAW')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_SEARCH')).'","'.$ts.'");';
+									self::$query = 'INSERT INTO `crnrstn_examples` (`EXAMPLEID`,`EXAMPLEID_SOURCE`,`METHODID`,`TITLE`,`TITLE_SEARCH`,`EXAMPLE_FORMATTED`,`EXAMPLE_RAW`,`EXAMPLE_SEARCH`,`DESCRIPTION`,`DESCRIPTION_SEARCH`,`URI`,`EXAMPLE_ELEM_TT`,`CHAR_CNT_FORMATTED`,`CHAR_CNT_RAW`,`CHAR_CNT_SEARCH`,`DATEMODIFIED`) VALUES ("'.crc32($seednum_mini).'","'.$seednum_mini.'","'.$oUser->getReqParamByKey('METHODID').'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('TITLE')).'","'.$mysqli->real_escape_string($this->search_FillerSanitize($oUser->getReqParamByKey('TITLE_SEARCH'))).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_FORMATTED')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_RAW')).'","'.$mysqli->real_escape_string($this->search_FillerSanitize($oUser->getReqParamByKey('EXAMPLE_SEARCH'))).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('DESCRIPTION')).'","'.$mysqli->real_escape_string($this->search_FillerSanitize($oUser->getReqParamByKey('DESCRIPTION_SEARCH'))).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('URI')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('EXAMPLE_ELEM_TT')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_FORMATTED')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_RAW')).'","'.$mysqli->real_escape_string($oUser->getReqParamByKey('CHAR_CNT_SEARCH')).'","'.$ts.'");';
 								}
 							}
 						}
@@ -1797,7 +2586,8 @@ class database_integration {
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					//error_log("/services/ database (3045) query->".self::$query);
+					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
 					if($mysqli->error){
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
 					
@@ -1848,9 +2638,11 @@ class database_integration {
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
 					if($mysqli->error){
+							
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
+						$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);
 					
 					}else{
 						//
@@ -1917,7 +2709,7 @@ class database_integration {
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processQuery($mysqli, self::$query);
 					if($mysqli->error){
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
 					
@@ -1952,7 +2744,7 @@ class database_integration {
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
 					if($mysqli->error){
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
 					
@@ -1985,7 +2777,7 @@ class database_integration {
 					
 					//
 					// PROCESS QUERY
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
 					if($mysqli->error){
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
 					
@@ -2025,7 +2817,7 @@ class database_integration {
 					
 				break;
 				case 'method_parameters':
-					//error_log("/crnrstn/ database.inc.php (1864) method_parameters");
+					//error_log("/services/ database.inc.php (3251) method_parameters");
 					//
 					// BUILD QUERY
 					for($i=0;$i<5000;$i++){						
@@ -2034,17 +2826,9 @@ class database_integration {
 						if($oUserEnvironment->oHTTP_MGR->issetParam($_POST,'m')){
 							if($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_id'.$i)!=''){
 								if($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_name'.$i)!=''){
-									
-									if($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_required'.$i)==""){
-										$tmp_param_required="0";
-									}else{
-										$tmp_param_required = $oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_required'.$i);
-									}
-																		
 									//
 									// UPDATE EXISTING PARAMETER + METADATA
-									//error_log("/crnrstn/ database.inc.php (1875) build SQL for method_parameters");
-									self::$query .= 'UPDATE `crnrstn_params` SET `NAME`="'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_name'.$i)).'",`NAME_SEARCH`="'.$mysqli->real_escape_string($this->search_FillerSanitize(strtolower($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_name'.$i)))).'",`ISREQUIRED`="'.$mysqli->real_escape_string($tmp_param_required).'",`DESCRIPTION`="'.$mysqli->real_escape_string(htmlentities($this->clearDblBR($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_description'.$i)))).'",`DESCRIPTION_SEARCH`="'.$mysqli->real_escape_string($this->search_FillerSanitize($this->clearDblBR(strtolower($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_description'.$i))))).'",`URI`="'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'uri')).'",`POSITION`="'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_position'.$i)).'",`DATEMODIFIED`="'.$ts.'" WHERE `PARAMETERID`="'.crc32($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_id'.$i)).'" AND `PARAMETERID_SOURCE`="'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_id'.$i)).'" LIMIT 1;';
+									self::$query .= 'UPDATE `crnrstn_params` SET `NAME`="'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_name'.$i)).'",`NAME_SEARCH`="'.$mysqli->real_escape_string($this->search_FillerSanitize(strtolower($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_name'.$i)))).'",`ISREQUIRED`="'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_required'.$i)).'",`DESCRIPTION`="'.$mysqli->real_escape_string(htmlentities($this->clearDblBR($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_description'.$i)))).'",`DESCRIPTION_SEARCH`="'.$mysqli->real_escape_string($this->search_FillerSanitize($this->clearDblBR(strtolower($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_description'.$i))))).'",`URI`="'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'uri')).'",`DATEMODIFIED`="'.$ts.'" WHERE `PARAMETERID`="'.crc32($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_id'.$i)).'" AND `PARAMETERID_SOURCE`="'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_id'.$i)).'" LIMIT 1;';
 								}else{
 									//
 									// DELETE PARAMATER
@@ -2061,14 +2845,7 @@ class database_integration {
 								//
 								// ADD NEW PARAMETER TO DATABASE
 								if($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_name'.$i)!=''){
-									
-									if($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_required'.$i)==""){
-										$tmp_param_required="0";
-									}else{
-										$tmp_param_required = $oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_required'.$i);
-									}
-									
-									self::$query .= 'INSERT INTO crnrstn_params (`PARAMETERID`,`PARAMETERID_SOURCE`,`METHODID`,`NAME`,`NAME_SEARCH`,`ISREQUIRED`,`DESCRIPTION`,`DESCRIPTION_SEARCH`,`URI`,`DATEMODIFIED`) VALUES ("'.crc32($seednum_mini).'","'.$seednum_mini.'","'.crc32($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'm')).'","'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_name'.$i)).'","'.$mysqli->real_escape_string($this->search_FillerSanitize(strtolower($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_name'.$i)))).'","'.$mysqli->real_escape_string($tmp_param_required).'","'.$mysqli->real_escape_string(htmlentities($this->clearDblBR($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_description'.$i)))).'","'.$mysqli->real_escape_string($this->search_FillerSanitize($this->clearDblBR(strtolower($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_description'.$i))))).'","'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'uri')).'","'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_position'.$i)).'","'.$ts.'");';
+									self::$query .= 'INSERT INTO crnrstn_params (`PARAMETERID`,`PARAMETERID_SOURCE`,`METHODID`,`NAME`,`NAME_SEARCH`,`ISREQUIRED`,`DESCRIPTION`,`DESCRIPTION_SEARCH`,`URI`,`DATEMODIFIED`) VALUES ("'.crc32($seednum_mini).'","'.$seednum_mini.'","'.crc32($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'm')).'","'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_name'.$i)).'","'.$mysqli->real_escape_string($this->search_FillerSanitize(strtolower($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_name'.$i)))).'","'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_required'.$i)).'","'.$mysqli->real_escape_string(htmlentities($this->clearDblBR($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_description'.$i)))).'","'.$mysqli->real_escape_string($this->search_FillerSanitize($this->clearDblBR(strtolower($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'param_description'.$i))))).'","'.$mysqli->real_escape_string($oUserEnvironment->oHTTP_MGR->extractData($_POST, 'uri')).'","'.$ts.'");';
 								}
 							}
 						
@@ -2081,8 +2858,8 @@ class database_integration {
 					
 					//
 					// PROCESS QUERY
-					//error_log("/crnrstn/ database.inc.php (1906) query->".self::$query);
-					self::$result = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
+					//error_log("/services/ database (3292) query->".self::$query);
+					$mysqli = $oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, self::$query);
 					if($mysqli->error){
 						throw new Exception('CRNRSTN database_integration :: '.$queryType.' ERROR :: ['.$mysqli->error.']');
 					
@@ -2111,7 +2888,10 @@ class database_integration {
 			$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);
 			return self::$query_exception_result;
 		}
-
+		
+		//
+		// IF WE GET THIS FAR...
+		$oUserEnvironment->oMYSQLI_CONN_MGR->closeConnection($mysqli);
 	}
 	
 	public function clearDblBR($str){

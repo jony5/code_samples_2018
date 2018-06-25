@@ -7,13 +7,9 @@ class user {
 	public $page_uri;
 	public $user_ARRAY = array();
 	public $contentOutput_ARRAY = array();
-	public $methodID_SOURCE;
-	public $classID_SOURCE;
 	private static $oLogger;
 	private static $contentID;
 	private static $contentType;
-	private static $frm_input_ARRAY = array();
-	private static $unsub_ARRAY = array();
 	
 	private static $dataBaseIntegration;
 	private static $oUserEnvironment;
@@ -32,10 +28,8 @@ class user {
 	private static $frm_input_email;
 	private static $frm_input_username;
 	private static $frm_input_password;
-	private static $frm_input_pwdconfirm;
 	private static $frm_input_sessionpersist;
 	private static $frm_input_deactivate;
-	private static $frm_input_pwdreset;
 	private static $frm_input_mid;
 	private static $frm_input_cid;
 	private static $frm_input_eid;
@@ -45,7 +39,6 @@ class user {
 	private static $frm_input_comment_subject;
 	private static $frm_input_comment_styled;
 	private static $frm_input_comment_raw;
-	private static $frm_input_comment_has_code;
 	private static $frm_input_comment_elem_s;
 	private static $frm_input_comment_elem_tt;
 	private static $frm_input_comment_lock;
@@ -59,8 +52,6 @@ class user {
 	private static $frm_input_comment_maxCodeLen;
 	private static $frm_input_comment_backLogCode = 0;
 	private static $frm_input_comment_isunique;
-	private static $frm_input_comment_publishme;
-	private static $frm_input_comment_nid_replyto;
 	private static $frm_input_thumbnail;
 	private static $frm_input_thumbnail_width;
 	private static $frm_input_thumbnail_height;
@@ -104,7 +95,6 @@ class user {
 	//
 	// USER PROFILE INFORMATION
 	private static $sess_user_USERNAME;
-	private static $sess_user_ISACTIVE;
 	private static $sess_user_USERID_SOURCE;
 	private static $sess_user_USERNAME_DISPLAY;
 	private static $sess_user_FNAME;
@@ -130,7 +120,6 @@ class user {
 	private static $feedback_FB_FEATREQUEST;
 	private static $feedback_FB_GENQUESTION;
 	private static $feedback_FB_GENCOMMENT;
-	private static $feedback_FB_REPORTSPAM;
 	private static $feedback_OPTIN;
 	private static $feedback_USERNAME;
 	private static $feedback_CLASSID_SOURCE;
@@ -140,18 +129,17 @@ class user {
 	private static $feedback_HTTP_REFERER;
 	private static $feedback_REMOTE_ADDR;
 	
-	//
-	// LIKE
-	private static $like_param_noteid_source;
-	private static $like_param_un;
-	private static $like_param_cid;
-	private static $like_param_mid;
-	private static $like_param_state;
-	private static $tmp_like_param_elementid;
 	
 	//
 	// ENVIRONMENTAL PROFILE INFORMATION
-	private static $sess_env_param_ARRAY = array();
+	private static $sess_env_DOCUMENT_ROOT;
+	private static $sess_env_ROOT_PATH_CLIENT_HTTP;
+	private static $sess_env_SOA_NAMESPACE;
+	private static $sess_env_PAGE_INDEXSIZE;
+	private static $sess_env_SEARCHPAGE_INDEXSIZE;
+	private static $sess_env_DATA_MODE;
+	private static $sess_env_USERPROFILE_EXTERNALURI;
+	private static $sess_env_AUTOSUGGEST_RESULT_MAX;
 	
 	public function __construct($userEnv) {
 	
@@ -171,9 +159,9 @@ class user {
 		
 		//
 		// INSTANTIATE WEB SERVICES MANAGER
-		//if(!isset(self::$soapManager)){
+		if(!isset(self::$soapManager)){
 			self::$soapManager = new crnrstn_soap_manager(self::$oUserEnvironment,'WSDL_URI','WSDL_CACHE_TTL','NUSOAP_USECURL');
-		//}
+		}
 		
 		//
 		// INITIALIZE MAX CHAR COUNT FOR REAL-TIME (NON-BACKLOG) CODE STYLES
@@ -181,46 +169,66 @@ class user {
 
 	}
 	
-	public function unsubscribeEmail(){
-		self::$frm_input_ARRAY["EMAIL"] = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'email');
-		self::$frm_input_ARRAY["MSG_SOURCEID"] = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'MSG_SOURCEID');
-	 	return self::$dataBaseIntegration->unsubscribeEmail($this, self::$oUserEnvironment);
-	}
-	
-	public function loadUnsubscribes(){
-		//
-		//  UNSUBSCRIBE SUPPORT FOR PROXY EMAIL TRIGGER.
-		self::$unsub_ARRAY = self::$dataBaseIntegration->getUnsubSuppression($this, self::$oUserEnvironment);
-		
-	}
-	
-	public function isUnsubscribed($email){
-		if(isset(self::$unsub_ARRAY[strtolower($email)])){
-			return true;		
-		}else{
-			return false;
-		}
-		
-	}
-	
-	public function testCrnrstn(){
-		$mysqli = self::$oUserEnvironment->oMYSQLI_CONN_MGR->returnConnection();
-		$query = 'INSERT INTO `test_crnrstn` (`NAME`) VALUES ("Jonathan");';
-		$result = self::$oUserEnvironment->oMYSQLI_CONN_MGR->processMultiQuery($mysqli, $query);
-		
-	}
-	
-	public function retrieve_Form_Data($key){
-		return self::$frm_input_ARRAY[$key];
-	}
-	
 	public function getEnvParam($paramName){
-		
-		if(!isset(self::$sess_env_param_ARRAY[$paramName])){
-			self::$sess_env_param_ARRAY[$paramName] = self::$oUserEnvironment->getEnvParam($paramName);
+		//error_log("services user.inc.php (173) getEnvParam [".$paramName."]");
+		switch($paramName){
+			case 'DOCUMENT_ROOT':
+				if(!isset(self::$sess_env_DOCUMENT_ROOT)){
+					self::$sess_env_DOCUMENT_ROOT = self::$oUserEnvironment->get($paramName);
+				}
+				
+				return self::$sess_env_DOCUMENT_ROOT;
+			break;
+			case 'ROOT_PATH_CLIENT_HTTP':
+				if(!isset(self::$sess_env_ROOT_PATH_CLIENT_HTTP)){
+					self::$sess_env_ROOT_PATH_CLIENT_HTTP = self::$oUserEnvironment->get($paramName);
+				}
+				
+				return self::$sess_env_ROOT_PATH_CLIENT_HTTP;
+			break;
+			case 'SOA_NAMESPACE':
+				if(!isset(self::$sess_env_SOA_NAMESPACE)){
+					self::$sess_env_SOA_NAMESPACE = self::$oUserEnvironment->get($paramName);
+				}
+				
+				return self::$sess_env_SOA_NAMESPACE;
+			break;
+			case 'PAGE_INDEXSIZE':
+				if(!isset(self::$sess_env_PAGE_INDEXSIZE)){
+					self::$sess_env_PAGE_INDEXSIZE = self::$oUserEnvironment->get($paramName);
+				}
+				
+				return self::$sess_env_PAGE_INDEXSIZE;
+			break;
+			case 'SEARCHPAGE_INDEXSIZE':
+				if(!isset(self::$sess_env_SEARCHPAGE_INDEXSIZE)){
+					self::$sess_env_SEARCHPAGE_INDEXSIZE = self::$oUserEnvironment->get($paramName);
+				}
+				
+				return self::$sess_env_SEARCHPAGE_INDEXSIZE;
+			break;
+			case 'DATA_MODE':
+				if(!isset(self::$sess_env_DATA_MODE)){
+					self::$sess_env_DATA_MODE = self::$oUserEnvironment->get($paramName);
+				}
+				
+				return self::$sess_env_DATA_MODE;
+			break;
+			case 'USERPROFILE_EXTERNALURI':
+				if(!isset(self::$sess_env_USERPROFILE_EXTERNALURI)){
+					self::$sess_env_USERPROFILE_EXTERNALURI = self::$oUserEnvironment->get($paramName);
+				}
+				
+				return self::$sess_env_USERPROFILE_EXTERNALURI;
+			break;
+			case 'AUTOSUGGEST_RESULT_MAX':
+				if(!isset(self::$sess_env_AUTOSUGGEST_RESULT_MAX)){
+					self::$sess_env_AUTOSUGGEST_RESULT_MAX = self::$oUserEnvironment->get($paramName);
+				}
+				
+				return self::$sess_env_AUTOSUGGEST_RESULT_MAX;
+			break;
 		}
-		
-		return self::$sess_env_param_ARRAY[$paramName];
 	}
 	
 	// 
@@ -240,13 +248,6 @@ class user {
 				}
 				
 				return self::$sess_user_USERNAME_DISPLAY;
-			break;
-			case 'ISACTIVE':
-				if(!isset(self::$sess_user_ISACTIVE)){
-					self::$sess_user_ISACTIVE = self::$oUserEnvironment->oSESSION_MGR->getSessionParam('LOGIN_'.$paramName);
-				}
-				
-				return self::$sess_user_ISACTIVE;
 			break;
 			case 'EMAIL':
 				if(!isset(self::$sess_user_EMAIL)){
@@ -348,13 +349,12 @@ class user {
 		try{
 			//
 			// INITIALIZE CONTENTID AND CONTENTTYPE
-			#error_log("/crnrstn/user.inc.php (304) methodID_SOURCE: ".$this->methodID_SOURCE);
-			if($this->classID_SOURCE!=""){
-				self::$contentID = $this->classID_SOURCE;
+			if(self::$oUserEnvironment->oHTTP_MGR->issetParam($_GET, 'c')){
+				self::$contentID = self::$oUserEnvironment->oHTTP_MGR->extractData($_GET, 'c');
 				self::$contentType = 'crnrstn_class';
 			}else{
-				if($this->methodID_SOURCE!=""){
-					self::$contentID = $this->methodID_SOURCE;
+				if(self::$oUserEnvironment->oHTTP_MGR->issetParam($_GET, 'm')){
+					self::$contentID = self::$oUserEnvironment->oHTTP_MGR->extractData($_GET, 'm');
 					self::$contentType = 'crnrstn_method';
 				}
 			}
@@ -424,12 +424,12 @@ class user {
 			
 				//
 				// STORE TRANSACTION DETAILS AND CONTENT NAME (FOR ADMINISTRATIVE REVIEW)
-			#	if(self::$oUserEnvironment->oSESSION_MGR->getSessionParam('LOGIN_USER_PERMISSIONS_ID')>399){
+				if(self::$oUserEnvironment->oSESSION_MGR->getSessionParam('LOGIN_USER_PERMISSIONS_ID')>399){
 					$this->contentOutput_ARRAY[3] = $this->returnClientRequest();   #SOAP Request Details(Content) ::
 					$this->contentOutput_ARRAY[5] = $this->returnClientResponse();  #SOAP Response Details(Content) ::
 					$this->contentOutput_ARRAY[7] = $this->returnClientGetDebug();  #SOAP Debug(Content) ::
 					self::$oUserEnvironment->oSESSION_MGR->setSessionParam('newMethodClassName', $this->contentOutput_ARRAY[1]['NAME']);			#CONTENT NAME FOR CONTENT MANAGEMENT PURPOSES
-			#	}
+				}
 			}
 			
 			return true;
@@ -448,32 +448,20 @@ class user {
 		try{
 			//
 			// INITIALIZE CONTENTID AND CONTENTTYPE
-			if($this->classID_SOURCE!="" || (self::$oUserEnvironment->oHTTP_MGR->extractData($_GET, 'c')!="")){
-				if($this->classID_SOURCE!=""){
-					self::$contentID = $this->classID_SOURCE;
-				}else{
-					self::$contentID = self::$oUserEnvironment->oHTTP_MGR->extractData($_GET, 'c');
-				}
-				
+			if(self::$oUserEnvironment->oHTTP_MGR->issetParam($_GET, 'c')){
+				self::$contentID = self::$oUserEnvironment->oHTTP_MGR->extractData($_GET, 'c');
 				self::$contentType = 'crnrstn_class';
 			}else{
-				if($this->methodID_SOURCE!="" || (self::$oUserEnvironment->oHTTP_MGR->extractData($_GET, 'm')!="")){
-					if($this->methodID_SOURCE!=""){
-						self::$contentID = $this->methodID_SOURCE;
-					}else{
-						self::$contentID = self::$oUserEnvironment->oHTTP_MGR->extractData($_GET, 'm');
-					}
-					
+				if(self::$oUserEnvironment->oHTTP_MGR->issetParam($_GET, 'm')){
+					self::$contentID = self::$oUserEnvironment->oHTTP_MGR->extractData($_GET, 'm');
 					self::$contentType = 'crnrstn_method';
 				}else{
 					//
 					// SHOW MISSING CONTENT ERROR
-					throw new Exception('Unable to deterrmine the nature of this content request.');
+					//throw new Exception('Unable to deterrmine the nature of this content request.');
 					exit();
 				}
 			}
-			
-			#error_log(self::$contentID);
 			
 			if(isset(self::$contentType)){
 				if(self::$oUserEnvironment->oHTTP_MGR->extractData($_GET, 'pi')==''){
@@ -517,12 +505,12 @@ class user {
 			
 			//
 			// STORE TRANSACTION DETAILS AND CONTENT NAME (FOR ADMINISTRATIVE REVIEW)
-			#if(self::$oUserEnvironment->oSESSION_MGR->getSessionParam('LOGIN_USER_PERMISSIONS_ID')>399){
+			if(self::$oUserEnvironment->oSESSION_MGR->getSessionParam('LOGIN_USER_PERMISSIONS_ID')>399){
 				$this->contentOutput_ARRAY[3] = $this->returnClientRequest();   #SOAP Request Details(Content) ::
 				$this->contentOutput_ARRAY[5] = $this->returnClientResponse();  #SOAP Response Details(Content) ::
 				$this->contentOutput_ARRAY[7] = $this->returnClientGetDebug();  #SOAP Debug(Content) ::
 				self::$oUserEnvironment->oSESSION_MGR->setSessionParam('newMethodClassName', $this->contentOutput_ARRAY[1]['NAME']);			#CONTENT NAME FOR CONTENT MANAGEMENT PURPOSES
-			#}
+			}
 			
 			return true;
 		
@@ -534,59 +522,7 @@ class user {
 			return false;
 		}
 	}
-	
-	public function triggerActivationEmail(){
-		self::$frm_input_email = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'email');
-		self::$frm_input_username = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'un');
-		
-		return $this->retriggerActivationEmail();
-	
-	}
-	
-	public function passwordResetRequest(){
-		self::$frm_input_pwdreset = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'pwdreset_data');
-		
-		//error_log("crnrstn user.inc.php (521) calling passwordResetRequest()...");
-		return $this->pwdResetRequest();
-		//return "pswdreset=true";
-		
-	}
-	
-	public function pwdRstRequest(){
-		self::$frm_input_password = md5(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'pwd'));
-		self::$frm_input_pwdconfirm = md5(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'pwdconfirm'));
-		self::$frm_input_mid = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'mid');
-		
-		
-		return $this->pwdResetRequest2();
-	}
-	
-	public function trkDownload(){
-		
-		//
-		// CALL PRIVATE METHOD WHICH WILL INVOKE WEB SERVICE
-		return $this->trkDwnld();
-		
-	}
-	
-	public function toggleLike(){
-		self::$like_param_noteid_source = self::$oUserEnvironment->oHTTP_MGR->extractData($_GET, 'nid');
-		self::$like_param_un = self::$oUserEnvironment->oHTTP_MGR->extractData($_GET, 'un');
-		self::$like_param_cid = self::$oUserEnvironment->oHTTP_MGR->extractData($_GET, 'cid');
-		self::$like_param_mid = self::$oUserEnvironment->oHTTP_MGR->extractData($_GET, 'mid');
-		self::$like_param_state = self::$oUserEnvironment->oHTTP_MGR->extractData($_GET, 'state');
-		
-		if(self::$like_param_cid==""){
-			self::$tmp_like_param_elementid = self::$like_param_mid;
-		}else{
-			self::$tmp_like_param_elementid = self::$like_param_cid;
-		}
-		
-		#error_log("/crnrstn/user.inc.php (535) like_param_noteid_source: ".self::$like_param_noteid_source."|like_param_state: ".self::$like_param_state);
-		
-		$this->toggleLikeLink();
-		
-	}
+
 	
 	public function updateContent_CRNRSTN($contentType){
 				
@@ -639,7 +575,6 @@ class user {
 			break;
 			case 'edit_techspec':
 			case 'edit_method':
-				#error_log("/crnrstn/ user.inc.php (528) edit_method case statement running");
 				//
 				// GET FORM DATA
 				self::$frm_admin_methodid = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'm');
@@ -720,20 +655,15 @@ class user {
 				//
 				// $_GET PARAM c IS NOTEID_SOURCE OR CLASSID DEPENDING ON FORM. HERE IT IS NOTEID_SOURCE
 				self::$frm_input_cid = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'c');
-				#error_log("/crnrstn/ user.inc.php (609) edit_comment comment cleanMySQLEscapes raw from HTTP: ".$this->cleanMySQLEscapes(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'comment')));
+				
 				self::$frm_input_eid = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'e');
 				self::$frm_input_comment_subject = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'subject');
-				self::$frm_input_comment_raw = $this->cleanMySQLEscapes(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'comment'));
-				self::$frm_input_comment_styled = $this->styleCode($this->cleanMySQLEscapes(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'comment')));
+				self::$frm_input_comment_raw = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'comment');
+				self::$frm_input_comment_styled = $this->styleCode(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'comment'));
 				self::$frm_input_element_name =  self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'element_name');
 				self::$frm_input_element_uri = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'uri');
 				self::$frm_input_comment_isunique = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'isunique');
-				self::$frm_input_comment_publishme = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'PUBLISHME');
 				
-				$pos = strpos(self::$frm_input_comment_styled, '<code>');
-				if($pos!==false){
-					self::$frm_input_comment_has_code = 1;
-				}
 				//
 				// SEND TO WEB SERVICE
 				if($contentType=='edit_comment'){
@@ -745,33 +675,6 @@ class user {
 				}
 
 			break;
-			case 'post_comment_reply':
-				//
-				// PREPARE CONTENT FOR DATABASE CONSUMPTION
-				self::$frm_input_mid = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'m');
-				
-				//
-				// $_GET PARAM c IS NOTEID_SOURCE OR CLASSID DEPENDING ON FORM. HERE IT IS CLASSID_SOURCE 
-				self::$frm_input_cid = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'c');
-				#error_log("/crnrstn/ user.inc.php (609) edit_comment comment cleanMySQLEscapes raw from HTTP: ".$this->cleanMySQLEscapes(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'comment')));
-				self::$frm_input_eid = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'e');
-				self::$frm_input_comment_subject = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'subject');
-				self::$frm_input_comment_raw = $this->cleanMySQLEscapes(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'comment'));
-				self::$frm_input_comment_styled = $this->styleCode($this->cleanMySQLEscapes(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'comment')));
-				self::$frm_input_element_name =  self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'element_name');
-				self::$frm_input_element_uri = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'uri');
-				self::$frm_input_comment_isunique = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'isunique');
-				self::$frm_input_comment_publishme = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'PUBLISHME');
-				self::$frm_input_comment_nid_replyto = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'nid_replyto');
-				
-				$pos = strpos(self::$frm_input_comment_styled, '<code>');
-				if($pos!==false){
-					self::$frm_input_comment_has_code = 1;
-				}
-				
-				return $this->postUserCommentreply();
-			
-			break;
 			case 'post_feedback':
 				self::$feedback_NAME = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'name');
 				self::$feedback_EMAIL = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'email');
@@ -781,7 +684,6 @@ class user {
 				self::$feedback_FB_FEATREQUEST = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'FB_FEATREQUEST');
 				self::$feedback_FB_GENQUESTION = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'FB_GENQUESTION');
 				self::$feedback_FB_GENCOMMENT = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'FB_GENCOMMENT');
-				self::$feedback_FB_REPORTSPAM = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'FB_REPORTSPAM');
 				self::$feedback_OPTIN = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'OPTIN');
 				self::$feedback_USERNAME = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'u');
 				self::$feedback_CLASSID_SOURCE = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST,'c');
@@ -799,27 +701,22 @@ class user {
 			break;
 			case 'new_example':
 			case 'edit_example':
-				#error_log("**************** YAY! TIME TO EDIT EXAMPLE! **********************");
+				
 				$this->initMaxCodeLen(20000);
 				
 				//
 				// BUILD QUERY
-				for($i=0;$i<1;$i++){		
-				
+				for($i=0;$i<1;$i++){						
 					//
 					// UPDATE EXISTING EXAMPLES
 					if(self::$oUserEnvironment->oHTTP_MGR->issetParam($_POST,'exampleid'.$i)){
-						#error_log("(670) here!!!!! :: ".self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example'.$i));
 						$this->crnrstn_example_EXAMPLEID = crc32(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'exampleid'.$i));
 						$this->crnrstn_example_EXAMPLEID_SOURCE = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'exampleid'.$i);
 						$this->crnrstn_example_TITLE = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example_title'.$i);
 						$this->crnrstn_example_TITLE_SEARCH = $this->search_FillerSanitize(strtolower(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example_title'.$i)));
 						$this->crnrstn_example_URI = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'uri');
-						#error_log("(676) made it here! ".$this->crnrstn_example_EXAMPLEID_SOURCE);
-						$this->crnrstn_example_EXAMPLE_FORMATTED = $this->styleCode($this->cleanMySQLEscapes(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example'.$i)),'crnrstn_'.$this->crnrstn_example_EXAMPLEID_SOURCE,$this->crnrstn_example_URI);
-						#error_log("(679) just finished styling! :: ".$this->crnrstn_example_EXAMPLE_FORMATTED);
+						$this->crnrstn_example_EXAMPLE_FORMATTED = $this->styleCode(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example'.$i),'crnrstn_'.$this->crnrstn_example_EXAMPLEID_SOURCE,$this->crnrstn_example_URI);
 						$this->crnrstn_example_EXAMPLE_RAW = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example'.$i);
-						#error_log("(681) crnrstn_example_EXAMPLE_RAW :: ".$this->crnrstn_example_EXAMPLE_RAW);
 						$this->crnrstn_example_EXAMPLE_SEARCH = $this->search_FillerSanitize(strtolower(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example'.$i)));
 						$this->crnrstn_example_DESCRIPTION = htmlentities(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example_description'.$i));
 						$this->crnrstn_example_DESCRIPTION_SEARCH = $this->search_FillerSanitize(strtolower(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example_description'.$i)));
@@ -828,13 +725,13 @@ class user {
 						$this->crnrstn_example_CHAR_CNT_RAW = strlen($this->crnrstn_example_EXAMPLE_RAW);
 						$this->crnrstn_example_CHAR_CNT_SEARCH = strlen($this->crnrstn_example_EXAMPLE_SEARCH);
 						
-						#error_log('/crnrstn/ user.inc.php (688) EXISTING EXAMPLE TO UPDATE :: '.$this->crnrstn_example_TITLE.','.$this->crnrstn_example_URI);
+						#error_log('(688) styleCode :: '.$this->crnrstn_example_EXAMPLEID.','.$this->crnrstn_example_EXAMPLEID_SOURCE);
 					}else{
-						#error_log("(687) here!!!!! :: ".$i);
+					
 						//
 						// NO ID. CHECK FOR CONTENT OF NEW SPECIFICATIONS
 						if(self::$oUserEnvironment->oHTTP_MGR->issetParam($_POST,'example'.$i)!=''){
-							#error_log('/crnrstn/ user.inc.php (691) EXAMPLE TO UPDATE :: '.self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example_title'.$i).','.$this->crnrstn_example_EXAMPLEID_SOURCE);
+				
 							//
 							// QUERY FOR NEW SPECIFICATION PROVIDED (CLASS)
 							if(self::$oUserEnvironment->oHTTP_MGR->issetParam($_POST,'c')!=''){
@@ -843,7 +740,7 @@ class user {
 								$this->crnrstn_example_CLASSID = crc32(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'c'));
 								$this->crnrstn_example_TITLE = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example_title'.$i);
 								$this->crnrstn_example_TITLE_SEARCH = $this->search_FillerSanitize(strtolower(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example_title'.$i)));
-								$this->crnrstn_example_EXAMPLE_FORMATTED = $this->styleCode($this->cleanMySQLEscapes(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example'.$i)));
+								$this->crnrstn_example_EXAMPLE_FORMATTED = $this->styleCode(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example'.$i));
 								$this->crnrstn_example_EXAMPLE_RAW = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example'.$i);
 								$this->crnrstn_example_EXAMPLE_SEARCH = $this->search_FillerSanitize(strtolower(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example'.$i)));
 								$this->crnrstn_example_DESCRIPTION = htmlentities(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example_description'.$i));
@@ -856,14 +753,13 @@ class user {
 							}else{
 								//
 								// QUERY FOR NEW SPECIFICATION PROVIDED (METHOD)
-								
 								if(self::$oUserEnvironment->oHTTP_MGR->issetParam($_POST,'m')!=''){
 									$this->crnrstn_example_EXAMPLEID = '';
 									$this->crnrstn_example_EXAMPLEID_SOURCE = '';
 									$this->crnrstn_example_METHODID = crc32(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'm'));
 									$this->crnrstn_example_TITLE = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example_title'.$i);
 									$this->crnrstn_example_TITLE_SEARCH = $this->search_FillerSanitize(strtolower(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example_title'.$i)));
-									$this->crnrstn_example_EXAMPLE_FORMATTED = $this->styleCode($this->cleanMySQLEscapes(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example'.$i)));
+									$this->crnrstn_example_EXAMPLE_FORMATTED = $this->styleCode(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example'.$i));
 									$this->crnrstn_example_EXAMPLE_RAW = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example'.$i);
 									$this->crnrstn_example_EXAMPLE_SEARCH = $this->search_FillerSanitize(strtolower(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example'.$i)));
 									$this->crnrstn_example_DESCRIPTION = htmlentities(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'example_description'.$i));
@@ -877,8 +773,6 @@ class user {
 							}
 						}
 					}
-					
-					#error_log("user.inc.php (738) TIME TO BUILD SOAP REQUEST");
 
 					//
 					// BUILD SOAP REQUEST
@@ -905,7 +799,6 @@ class user {
 					$this->crnrstn_example_EXAMPLE_RAW = '';
 
 				}
-				
 				
 				//
 				// SUBMIT SERVICES REQUEST [LIMIT OF 65535]
@@ -943,35 +836,6 @@ class user {
 		return false;
 	}
 	
-	public function cleanMySQLEscapes($dirtyString){
-	
-		#error_log("/crnrstn/ user.inc.php (805) Clean the escapes from ".$dirtyString);
-		#$string = 'The quick brown fox jumped over the lazy dog.';
-		$patterns = array();
-		$patterns[0] = '\&quot;';
-		$patterns[1] = "\'";
-		$patterns[2] = '\"';
-	//	$patterns[3] = '{';
-	//	$patterns[4] = '}';
-	//	$patterns[5] = '(';
-	//	$patterns[6] = ')';
-	
-		$replacements = array();
-		$replacements[0] = '"';
-		$replacements[1] = "'";
-		$replacements[2] = '"';
-	//	$replacements[3] = '';
-	//	$replacements[4] = '';
-	//	$replacements[5] = '';
-	//	$replacements[6] = '';
-	
-		
-		#$str = preg_replace($patterns, $replacements, $str);
-		$cleanString = str_replace($patterns, $replacements, $dirtyString);
-	
-		return $cleanString;
-	}
-	
 	public function login(){
 		//
 		// GET FORM DATA
@@ -981,12 +845,18 @@ class user {
 		
 		self::$oUserEnvironment->oSESSION_MGR->setSessionParam('FORM_UN', self::$frm_input_username);
 		
+		if(strlen(self::$frm_input_sessionpersist)>5){
+			self::$frm_input_sessionpersist=1;
+		}else{
+			self::$frm_input_sessionpersist=0;
+		}
+		
 		$this->user_ARRAY = $this->isValidLoginData();
-		if(strlen($this->user_ARRAY['USERNAME'])>0 && ($this->user_ARRAY['ISACTIVE']=="1" || $this->user_ARRAY['ISACTIVE']=="3")){
+		die();
+		if(strlen($this->user_ARRAY['USERNAME'])>0){
 			//
 			// WE HAVE MATCHING USER. STORE IN SESSION.
-			foreach($this->user_ARRAY as $key=>$val){
-				#error_log("/crnrstn/ user.inc.php (850) key: ".$key."=".$val);
+			foreach($this->user_ARRAY as $key=>$val){	
 				self::$oUserEnvironment->oSESSION_MGR->setSessionParam('LOGIN_'.$key, $val);
 				
 				//
@@ -1000,7 +870,7 @@ class user {
 			// SEND TO LP
 			$tmp_lp = self::$oUserEnvironment->oSESSION_MGR->getSessionParam('LANDINGPAGE');
 			if(strpos($tmp_lp,'account/signin/')>5 || strpos($tmp_lp,'account/activate/')>5){
-				$tmp_lp = $this->getEnvParam('ROOT_PATH_CLIENT_HTTP').$this->getEnvParam('ROOT_PATH_CLIENT_HTTP_DIR');
+				$tmp_lp = $this->getEnvParam('ROOT_PATH_CLIENT_HTTP').'crnrstn';
 			}
 			
 			header("Location: ".$tmp_lp);
@@ -1009,33 +879,6 @@ class user {
 		}else{
 			//
 			// ANY FINAL THINGS TO DO FOR BAD LOGIN ATTEMPT? THROTTLING...DOS PROTECTION....ETC...
-			switch($this->user_ARRAY['ISACTIVE']){
-				case '6':
-					//
-					// LOCKED BY ADMIN
-					$this->errorMessage = 'This account has been locked by the website administration.';
-				break;
-				case '9':
-					//
-					// LOCKED BY ADMIN
-					$this->errorMessage = 'This account has been deleted by the website administration.';
-				break;
-				case '0':
-					//
-					// LOCKED BY ADMIN
-					$this->errorMessage = 'This account has been deleted by the owner of this account.';
-				break;
-				case '5':
-					$this->errorMessage = 'This account has not yet been activated. Click <a href="'.$this->getEnvParam('ROOT_PATH_CLIENT_HTTP').$this->getEnvParam('ROOT_PATH_CLIENT_HTTP_DIR').'account/activate/resend/" target="_self">here</a> to resend the activation email.';
-				break;
-				default:
-					
-					$this->errorMessage = 'Invalid username or password provided.';
-				break;
-			
-			}
-			
-			
 			return false;
 		}
 	}
@@ -1047,7 +890,6 @@ class user {
 		//
 		// INSTANTIATE COOKIE MANAGER SO YOU CAN DESTROY IT
 		if(!isset($oCOOKIE_MGR)){
-			#error_log("/crnrstn/ user.inc.php (869) ATTN :: Confirm that $oCRNRSTN_ENV was passed into the new cookie_manager.");
 			$oCOOKIE_MGR = new crnrstn_cookie_manager(self::$oUserEnvironment);
 		}
 		
@@ -1067,7 +909,7 @@ class user {
 		// DESTROY SESSION DATA
 		session_destroy();
 		unset($oCOOKIE_MGR);
-		header("Location: ".$this->getEnvParam('ROOT_PATH_CLIENT_HTTP').$this->getEnvParam('ROOT_PATH_CLIENT_HTTP_DIR').$tmp_param);
+		header("Location: ".$this->getEnvParam('ROOT_PATH_CLIENT_HTTP')."crnrstn/".$tmp_param);
 		exit();
 
 	}
@@ -1108,6 +950,12 @@ class user {
 		self::$frm_input_password = md5(self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'pwd'));
 		self::$frm_input_sessionpersist = self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 'login_persist');
 		
+		if(strlen(self::$frm_input_sessionpersist)>5){
+			self::$frm_input_sessionpersist=1;
+		}else{
+			self::$frm_input_sessionpersist=0;
+		}
+		
 		self::$oUserEnvironment->oSESSION_MGR->setSessionParam('FORM_FNAME', self::$frm_input_firstname);
 		self::$oUserEnvironment->oSESSION_MGR->setSessionParam('FORM_LNAME', self::$frm_input_lastname);
 		self::$oUserEnvironment->oSESSION_MGR->setSessionParam('FORM_EMAIL', self::$frm_input_email);
@@ -1120,22 +968,18 @@ class user {
 				//
 				// CHECK VALIDITY WITH DATABASE
 				if($this->isUnUnique(self::$frm_input_username) == 'unique=true'){
-					//
-					// CREATE NEW USER
-					//error_log("(1096) crnrstn user.inc run creatNewUser()");
 					$tmp_response = $this->creatNewUser();
-					//error_log("crnrstn user.inc (1098) tmp_response->".$tmp_response);
 					if( strlen($tmp_response) == 58){
 						$tmp_response = explode('=',$tmp_response);
 						
 						//
 						// NEW ACCOUNT HAS BEEN CREATED. 
 						// SEND EMAIL FOR ACCOUNT CONFIRM
-						#error_log('/crnrstn/ user.inc.php (948) crnrstn/account/activate/?k='.$tmp_response[1].'&un='.self::$frm_input_username);
+						#error_log('crnrstn/account/activate/?k='.$tmp_response[1].'&un='.self::$frm_input_username);
 						
 						//
 						//SEND TO CONFIRMATION PAGE
-						header("Location: ".self::$oUserEnvironment->getEnvParam('ROOT_PATH_CLIENT_HTTP').self::$oUserEnvironment->getEnvParam('ROOT_PATH_CLIENT_HTTP_DIR')."account/confirm/");
+						header("Location: ".self::$oUserEnvironment->getEnvParam('ROOT_PATH_CLIENT_HTTP')."crnrstn/account/confirm/");
 						exit();
 					}else{
 						$this->errorMessage = 'An error was experienced while creating your account. Please try again later.';
@@ -1262,8 +1106,8 @@ class user {
 				//
 				// DESTINATION DIRECTORIES
 				$TMP_DYN_DIR = '0000';
-				$FILEUPLOADDIR = $this->getEnvParam('DOCUMENT_ROOT').$this->getEnvParam('DOCUMENT_ROOT_DIR').'/common/imgs/usr/_orig/'.$TMP_DYN_DIR.'/';
-				$FILEMICRODIR = $this->getEnvParam('DOCUMENT_ROOT').$this->getEnvParam('DOCUMENT_ROOT_DIR').'/common/imgs/usr/thumb/'.$TMP_DYN_DIR.'/';
+				$FILEUPLOADDIR = $this->getEnvParam('DOCUMENT_ROOT').'crnrstn/common/imgs/usr/_orig/'.$TMP_DYN_DIR.'/';
+				$FILEMICRODIR = $this->getEnvParam('DOCUMENT_ROOT').'crnrstn/common/imgs/usr/thumb/'.$TMP_DYN_DIR.'/';
 			
 				//
 				// PREPARE HASH FILENAME PREFIX
@@ -1486,7 +1330,7 @@ class user {
 	}
 	
 	public function styleCode($str,$contentType=NULL,$uri=NULL){
-		#error_log("/crnrstn/ user.inc.php (1342) Styling Code: ".$str);
+	
 		//
 		// INITIALIZE PARAMS
 		self::$frm_input_comment_lock = 0;
@@ -1519,7 +1363,7 @@ class user {
 		// GOT CODE?
 		if(sizeof($codeOpen_ARRAY)>1){
 			#error_log('GOT CODE :: '.sizeof($codeOpen_ARRAY));
-			#error_log("/crnrstn/ user.inc.php (1344) inside code styler! :: ".sizeof($codeOpen_ARRAY));
+			
 			//
 			// RETRIEVE CODE ELEMENTS FOR EXAMPLE AUGMENTATION AND DEFINE ELEMENT STYLES
 			self::$code_elementid_ARRAY = $this->returnCodeElements();
@@ -1527,16 +1371,14 @@ class user {
 			if(sizeof(self::$code_elementid_ARRAY['TT_ARRAY'])<5){
 				self::$frm_input_comment_backLogCode = 1;
 			}
-			#error_log("/crnrstn/ user.inc.php (1352) inside code styler! :: ".sizeof($codeOpen_ARRAY));
+			
 			self::$code_element_CSS['PHP_NATIVE_METHOD']='code_sysfunc_call';
 			self::$code_element_CSS['PHP_LOGICAL_EXPRESS']='code_log_exp';
 			self::$code_element_CSS['PHP_SYSTEM_CONSTANTS']='code_system_constants';
 			self::$code_element_CSS['PHP_GLOBAL_ARRAYS']='code_html_doc_type_tag';
 			
 			#error_log('(1121) SIZE:: '.sizeof(self::$code_elementid_ARRAY['TT_ARRAY']));
-			#error_log("/crnrstn/ user.inc.php (1359) inside code styler! :: ".sizeof($codeOpen_ARRAY));
 			for($i=0; $i<sizeof($codeOpen_ARRAY); $i++){
-				
 				//
 				// ALWAYS A COMMENT...OR NOTHING
 				if($i==0 && trim($codeOpen_ARRAY[$i][0])!=''){
@@ -1601,13 +1443,7 @@ class user {
 						}else{
 							self::$elementOpen_CSS['CODE'] = '<div class="code_wrapper"><div id="'.self::$frm_input_comment_lineNumId.'" class="l_num">j5isbaddass</div><div class="code_shell"><code>';
 						}
-						
-						$tmp_linkto = '';
-						if($this->getUserParam('USER_PERMISSIONS_ID')>399){
-							//$tmp_linkto = '<div id="example_scrollto_'.self::$styleCode_cnt.'" class="example_scrollto" onClick="initScrollTo_lnk(this,\''.$this->getEnvParam('ROOT_PATH_CLIENT_HTTP').$this->getEnvParam('ROOT_PATH_CLIENT_HTTP_DIR').self::$styleCode_uri.'\');"><a href="#" target="_self">Link</a>.</div>';
-						}
-						
-						$str_styled .= $tmp_linkto.self::$elementOpen_CSS['CODE'].$this->applyCSS(htmlentities(substr($str, $tmp_codeOpen_A1)),htmlentities(substr($str_SHADOW, $tmp_codeOpen_A1))).self::$elementClose_CSS['CODE'];
+						$str_styled .= '<div id="example_scrollto_'.self::$styleCode_cnt.'" class="example_scrollto" onClick="initScrollTo_lnk(this,\''.$this->getEnvParam('ROOT_PATH_CLIENT_HTTP').self::$styleCode_uri.'\');"><a href="#" target="_self">Link</a>.</div>'.self::$elementOpen_CSS['CODE'].$this->applyCSS(htmlentities(substr($str, $tmp_codeOpen_A1)),htmlentities(substr($str_SHADOW, $tmp_codeOpen_A1))).self::$elementClose_CSS['CODE'];
 						$str_styled =  str_replace('<code><br>', '<code>', $str_styled);
 						$str_styled =  str_replace('</div><br>', '</div>', $str_styled);
 						$str_styled =  str_replace('<br></code>', '</code>', $str_styled);
@@ -1630,13 +1466,7 @@ class user {
 							}else{
 								self::$elementOpen_CSS['CODE'] = '<div class="code_wrapper"><div id="'.self::$frm_input_comment_lineNumId.'" class="l_num">j5isbaddass</div><div class="code_shell"><code>';
 							}
-							
-							$tmp_linkto = '';
-							if($this->getUserParam('USER_PERMISSIONS_ID')>399){
-								//$tmp_linkto = '<div id="example_scrollto_'.self::$styleCode_cnt.'" class="example_scrollto" onClick="initScrollTo_lnk(this,\''.$this->getEnvParam('ROOT_PATH_CLIENT_HTTP').$this->getEnvParam('ROOT_PATH_CLIENT_HTTP_DIR').self::$styleCode_uri.'\');"><a href="#" target="_self">Link</a>.</div>';
-							}
-							
-							$str_styled .= $tmp_linkto.self::$elementOpen_CSS['CODE'].$this->applyCSS(htmlentities(substr($str, $tmp_codeOpen_A1, $tmp_codeOpen_A2)),htmlentities(substr($str_SHADOW, $tmp_codeOpen_A1, $tmp_codeOpen_A2))).self::$elementClose_CSS['CODE'];
+							$str_styled .= '<div id="example_scrollto_'.self::$styleCode_cnt.'" class="example_scrollto" onClick="initScrollTo_lnk(this,\''.$this->getEnvParam('ROOT_PATH_CLIENT_HTTP').self::$styleCode_uri.'\');"><a href="#" target="_self">Link</a>.</div>'.self::$elementOpen_CSS['CODE'].$this->applyCSS(htmlentities(substr($str, $tmp_codeOpen_A1, $tmp_codeOpen_A2)),htmlentities(substr($str_SHADOW, $tmp_codeOpen_A1, $tmp_codeOpen_A2))).self::$elementClose_CSS['CODE'];
 							$str_styled =  str_replace('<code><br>', '<code>', $str_styled);
 							$str_styled =  str_replace('<br></code>', '</code>', $str_styled);
 							for($xi=self::$frm_input_comment_startNum; $xi<self::$frm_input_comment_lineCnt; $xi++){
@@ -1668,7 +1498,7 @@ class user {
 			}
 			
 			$str = $str_styled;
-			#error_log('/crnrstn/ user.inc.php (1491) str_styled :: '.$str_styled);
+			#error_log('(1223) str_styled :: '.$str_styled);
 			return $str;
 		}else{
 			#error_log('(1218) NO CODE!');
@@ -2365,7 +2195,6 @@ class user {
 											if($tmp_str_C_pos_slash_open<3){
 												#error_log('PROCESSING LINE LCK('.self::$frm_input_comment_lock.') (2 @ 608) :: '.$str);
 												if(substr($str, ($tmp_str_C_pos_slash_close + 2))==($code_len)){
-													
 													$str = substr($str,0, (-1*($code_len - $tmp_str_C_pos_slash_open))).self::$elementOpen_CSS['CODE_COMMENT'].substr($str,$tmp_str_C_pos_slash_open).self::$elementClose_CSS['CODE_COMMENT'].substr($str, ($tmp_str_C_pos_slash_close + 2));
 													#error_log('(1921) PROCESSED COMMENTS :: '.$str);
 												}else{
@@ -2715,7 +2544,7 @@ class user {
 	}
 	
 	private function updateFatClientArch($contentType,$contentID,$exampleFormatted=NULL){
-		#error_log('/crnrstn/ user.inc.php (2540) updateFatClientArch :: '.$contentType.','.$contentID);
+		#error_log('(2424) :: '.$contentType.','.$contentID);
 		switch($contentType){
 			case 'm':
 				$this->updateFatClientMethod($contentID,$exampleFormatted);
@@ -2742,8 +2571,8 @@ class user {
 			//die();
 			//for($i=0; $i<sizeof($result_ID_ARRAY); $i++){
 			
-			$FILEPATH = $this->getEnvParam('DOCUMENT_ROOT').$this->getEnvParam('DOCUMENT_ROOT_DIR').'/common/xml/content/';
-			$FILEPATH_EXAMPLE = $this->getEnvParam('DOCUMENT_ROOT').$this->getEnvParam('DOCUMENT_ROOT_DIR').'/common/html/examples/';
+			$FILEPATH = $this->getEnvParam('DOCUMENT_ROOT').'crnrstn/common/xml/content/';
+			$FILEPATH_EXAMPLE = $this->getEnvParam('DOCUMENT_ROOT').'crnrstn/common/html/examples/';
 			$FILENAME = 'crnrstn_'.$contentID.'.xml';
 			$ts = date("Y-m-d H:i:s", time()-60*60*6);
 			$xml_method_output_str = '';
@@ -2758,7 +2587,7 @@ class user {
 			//
 			// INITIALIZE METHOD SPECIFIC PARAMETERS
 			$soap_resp_NAME = $this->contentOutput_ARRAY[1]['NAME'];
-			$soap_resp_DESCRIPTION = $this->cleanMySQLEscapes($this->contentOutput_ARRAY[1]['DESCRIPTION']);
+			$soap_resp_DESCRIPTION = $this->contentOutput_ARRAY[1]['DESCRIPTION'];
 			$soap_resp_INVOKINGCLASS = $this->contentOutput_ARRAY[1]['CLASSNAME'];
 			$soap_resp_METHODDEFINE = $this->contentOutput_ARRAY[1]['METHODDEFINE'];
 			$soap_resp_RETURNEDVALUE = $this->contentOutput_ARRAY[1]['RETURNEDVALUE'];
@@ -2772,7 +2601,7 @@ class user {
 			for($rownum=0; $rownum<sizeof($this->contentOutput_ARRAY[1]['TECHNICALSPECS']); $rownum++){
 				#TECH SPECS
 				$crnrstn_techspecs_TECHSPECID_SOURCE = $this->contentOutput_ARRAY[1]['TECHNICALSPECS'][$rownum]['TECHSPECID'];
-				$crnrstn_techspecs_TECHSPEC_CONTENT = $this->cleanMySQLEscapes($this->contentOutput_ARRAY[1]['TECHNICALSPECS'][$rownum]['TECHNICALSPEC']);
+				$crnrstn_techspecs_TECHSPEC_CONTENT = $this->contentOutput_ARRAY[1]['TECHNICALSPECS'][$rownum]['TECHNICALSPEC'];
 									
 				$xml_techspecscontent_BODY_str .='<crnrstn_techspec>'.$this->XML_sanitize($crnrstn_techspecs_TECHSPEC_CONTENT).'</crnrstn_techspec>';
 				#echo '<br><br>######################<br>'.$xml_techspecscontent_BODY_str.'<br>######################';
@@ -2783,7 +2612,7 @@ class user {
 				$crnrstn_params_PARAMETERID_SOURCE = $this->contentOutput_ARRAY[1]['PARAMETERS'][$rownum]['PARAMETERID'];
 				$crnrstn_params_NAME = $this->contentOutput_ARRAY[1]['PARAMETERS'][$rownum]['NAME'];
 				$crnrstn_params_ISREQUIRED = $this->contentOutput_ARRAY[1]['PARAMETERS'][$rownum]['ISREQUIRED'];
-				$crnrstn_params_DESCRIPTION = $this->cleanMySQLEscapes($this->contentOutput_ARRAY[1]['PARAMETERS'][$rownum]['DESCRIPTION']);
+				$crnrstn_params_DESCRIPTION = $this->contentOutput_ARRAY[1]['PARAMETERS'][$rownum]['DESCRIPTION'];
 				$crnrstn_params_LANGCODE = $this->contentOutput_ARRAY[1]['PARAMETERS'][$rownum]['LANGCODE'];
 				$crnrstn_params_DATEMODIFIED = $this->contentOutput_ARRAY[1]['PARAMETERS'][$rownum]['DATEMODIFIED'];
 		
@@ -2796,12 +2625,12 @@ class user {
 				$crnrstn_examples_EXAMPLEID = $this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['EXAMPLEID'];
 				$crnrstn_examples_TITLE = $this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['TITLE'];
 				if($exampleFormatted[$crnrstn_examples_EXAMPLEID]!=''){
-					$crnrstn_examples_EXAMPLE_FORMATTED = $this->cleanMySQLEscapes($exampleFormatted[$crnrstn_examples_EXAMPLEID]);
+					$crnrstn_examples_EXAMPLE_FORMATTED = $exampleFormatted[$crnrstn_examples_EXAMPLEID];
 				}else{
 					#$crnrstn_examples_EXAMPLE_FORMATTED = $this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['EXAMPLE_FORMATTED'];
 				}
-				$crnrstn_examples_EXAMPLE_RAW = $this->cleanMySQLEscapes($this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['EXAMPLE_RAW']);
-				$crnrstn_examples_DESCRIPTION = $this->cleanMySQLEscapes($this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['DESCRIPTION']);
+				$crnrstn_examples_EXAMPLE_RAW = $this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['EXAMPLE_RAW'];
+				$crnrstn_examples_DESCRIPTION = $this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['DESCRIPTION'];
 				$crnrstn_examples_EXAMPLE_ELEM_TT = $this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['EXAMPLE_ELEM_TT'];
 				$crnrstn_examples_LANGCODE = $this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['LANGCODE'];
 				$crnrstn_examples_DATEMODIFIED = $this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['DATEMODIFIED'];
@@ -2813,8 +2642,6 @@ class user {
 				// DUE TO SOAP TRANSMISSION LIMITATION OF 65535 CHARS BEING 
 				// EXCEEDED. DATABASE DATA CAN BE TRUNCATED IN EXAMPLE_FORMATTED FIELD
 				if($exampleFormatted[$crnrstn_examples_EXAMPLEID]!=''){
-					#error_log("/crnrstn/ user.inc.php (2688) BURNING EXAMPLE HTML FILE to ".$FILEPATH_EXAMPLE."crnrstn_".$crnrstn_examples_EXAMPLEID.".html");
-					#error_log("HTML Content: ".$tmp_example_doc);
 					$fp = fopen($FILEPATH_EXAMPLE.'crnrstn_'.$crnrstn_examples_EXAMPLEID.'.html', 'w');
 					fwrite($fp, $tmp_example_doc);
 					fclose($fp);
@@ -2823,7 +2650,7 @@ class user {
 				unset($tmp_example_doc);
 				unset($xml_exampleshtmlcontent_str);
 				
-				$xml_examplescontent_BODY_str .='<crnrstn_example uri="'.$this->getEnvParam('ROOT_PATH_CLIENT_HTTP').$this->getEnvParam('ROOT_PATH_CLIENT_HTTP_DIR').'common/html/examples/crnrstn_'.$crnrstn_examples_EXAMPLEID.'.html">'.$crnrstn_examples_EXAMPLEID.'</crnrstn_example>';
+				$xml_examplescontent_BODY_str .='<crnrstn_example uri="'.$this->getEnvParam('ROOT_PATH_CLIENT_HTTP').'crnrstn/common/html/examples/crnrstn_'.$crnrstn_examples_EXAMPLEID.'.html">'.$crnrstn_examples_EXAMPLEID.'</crnrstn_example>';
 				#echo '<br><br>######################<br>'.$xml_examplescontent_BODY_str.'<br>######################';
 			}
 				
@@ -2836,7 +2663,7 @@ class user {
 			unset($xml_techspecscontent_BODY_str);
 			unset($xml_parameterscontent_BODY_str);
 			unset($xml_examplescontent_BODY_str);
-			#error_log("/crnrstn/ user.inc.php (2659) SAVE METHOD XML to: ".$FILEPATH.$FILENAME);
+			
 			$fp = fopen($FILEPATH.$FILENAME, 'w');
 			fwrite($fp, $TMP_METHOD_OUTPUT);
 			fclose($fp);
@@ -2846,7 +2673,7 @@ class user {
 			
 			//
 			// LOG ERROR FOR DB ACTIVITY LOGGING
-			$oCRNRSTN_ENV->oLOGGER->captureNotice('CRNRSTN error notification :: XML Content Gen Failure (@ln220) (METHOD)', LOG_NOTICE, $e->getMessage());
+			self::$oLogger->captureNotice('CRNRSTN error notification :: XML Content Gen Failure (@ln220) (METHOD)', LOG_NOTICE, $e->getMessage());
 		}
 	}
 	
@@ -2867,8 +2694,8 @@ class user {
 			//die();
 			//for($i=0; $i<sizeof($result_ID_ARRAY); $i++){
 				
-				$FILEPATH = $this->getEnvParam('DOCUMENT_ROOT').$this->getEnvParam('DOCUMENT_ROOT_DIR').'/common/xml/content/';
-				$FILEPATH_EXAMPLE = $this->getEnvParam('DOCUMENT_ROOT').$this->getEnvParam('DOCUMENT_ROOT_DIR').'/common/html/examples/';
+				$FILEPATH = $this->getEnvParam('DOCUMENT_ROOT').'crnrstn/common/xml/content/';
+				$FILEPATH_EXAMPLE = $this->getEnvParam('DOCUMENT_ROOT').'crnrstn/common/html/examples/';
 				$FILENAME = 'crnrstn_'.$contentID.'.xml';
 				$ts = date("Y-m-d H:i:s", time()-60*60*6);
 				$xml_method_output_str = '';
@@ -2884,7 +2711,7 @@ class user {
 				// INITIALIZE METHOD SPECIFIC PARAMETERS
 				$soap_resp_CLASSID = $contentID;
 				$soap_resp_NAME = $this->contentOutput_ARRAY[1]['NAME'];
-				$soap_resp_DESCRIPTION = $this->cleanMySQLEscapes($this->contentOutput_ARRAY[1]['DESCRIPTION']);
+				$soap_resp_DESCRIPTION = $this->contentOutput_ARRAY[1]['DESCRIPTION'];
 				$soap_resp_VERSION = $this->contentOutput_ARRAY[1]['VERSION'];
 				$soap_resp_URI = $this->contentOutput_ARRAY[1]['URI'];
 				$soap_resp_LANGCODE = $this->contentOutput_ARRAY[1]['LANGCODE'];
@@ -2897,7 +2724,7 @@ class user {
 				for($rownum=0; $rownum<sizeof($this->contentOutput_ARRAY[1]['TECHNICALSPECS']); $rownum++){
 					#TECH SPECS
 					$crnrstn_techspecs_TECHSPECID_SOURCE = $this->contentOutput_ARRAY[1]['TECHNICALSPECS'][$rownum]['TECHSPECID'];
-					$crnrstn_techspecs_TECHSPEC_CONTENT = $this->cleanMySQLEscapes($this->contentOutput_ARRAY[1]['TECHNICALSPECS'][$rownum]['TECHNICALSPEC']);
+					$crnrstn_techspecs_TECHSPEC_CONTENT = $this->contentOutput_ARRAY[1]['TECHNICALSPECS'][$rownum]['TECHNICALSPEC'];
 										
 					$xml_techspecscontent_BODY_str .='<crnrstn_techspec>'.$this->XML_sanitize($crnrstn_techspecs_TECHSPEC_CONTENT).'</crnrstn_techspec>';
 					#echo '<br><br>######################<br>'.$xml_techspecscontent_BODY_str.'<br>######################';
@@ -2918,17 +2745,17 @@ class user {
 					$crnrstn_examples_EXAMPLEID = $this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['EXAMPLEID'];
 					$crnrstn_examples_TITLE = $this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['TITLE'];
 					if($exampleFormatted[$crnrstn_examples_EXAMPLEID]!=''){
-						$crnrstn_examples_EXAMPLE_FORMATTED = $this->cleanMySQLEscapes($exampleFormatted[$crnrstn_examples_EXAMPLEID]);
+						$crnrstn_examples_EXAMPLE_FORMATTED = $exampleFormatted[$crnrstn_examples_EXAMPLEID];
 					}else{
 						#$crnrstn_examples_EXAMPLE_FORMATTED = $this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['EXAMPLE_FORMATTED'];
 					}
-					$crnrstn_examples_EXAMPLE_RAW = $this->cleanMySQLEscapes($this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['EXAMPLE_RAW']);
-					$crnrstn_examples_DESCRIPTION = $this->cleanMySQLEscapes($this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['DESCRIPTION']);
-					$crnrstn_examples_EXAMPLE_ELEM_TT = $this->cleanMySQLEscapes($this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['EXAMPLE_ELEM_TT']);
+					$crnrstn_examples_EXAMPLE_RAW = $this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['EXAMPLE_RAW'];
+					$crnrstn_examples_DESCRIPTION = $this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['DESCRIPTION'];
+					$crnrstn_examples_EXAMPLE_ELEM_TT = $this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['EXAMPLE_ELEM_TT'];
 					$crnrstn_examples_LANGCODE = $this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['LANGCODE'];
 					$crnrstn_examples_DATEMODIFIED = $this->contentOutput_ARRAY[1]['EXAMPLES'][$rownum]['DATEMODIFIED'];
 										
-					$xml_exampleshtmlcontent_str .='<p>'.$crnrstn_examples_DESCRIPTION.'</p>'.$this->cleanMySQLEscapes($crnrstn_examples_EXAMPLE_FORMATTED).'<div strlen="'.strlen($crnrstn_examples_EXAMPLE_FORMATTED).'" class="example_title_wrapper"><code style="color:#FF0000;">'.$crnrstn_examples_TITLE.'</code></div><div class="cb_15"></div>'.'<div class="comment_tt_wrapper">'.$crnrstn_examples_EXAMPLE_ELEM_TT.'</div><div class="cb_15"></div>';
+					$xml_exampleshtmlcontent_str .='<p>'.$crnrstn_examples_DESCRIPTION.'</p>'.$crnrstn_examples_EXAMPLE_FORMATTED.'<div strlen="'.strlen($crnrstn_examples_EXAMPLE_FORMATTED).'" class="example_title_wrapper"><code style="color:#FF0000;">'.$crnrstn_examples_TITLE.'</code></div><div class="cb_15"></div>'.'<div class="comment_tt_wrapper">'.$crnrstn_examples_EXAMPLE_ELEM_TT.'</div><div class="cb_15"></div>';
 					$tmp_example_doc = $html_example_open.$xml_exampleshtmlcontent_str.$html_example_close;
 					
 					//
@@ -2943,7 +2770,7 @@ class user {
 					unset($tmp_example_doc);
 					unset($xml_exampleshtmlcontent_str);
 					
-					$xml_examplescontent_BODY_str .='<crnrstn_example uri="'.$this->getEnvParam('ROOT_PATH_CLIENT_HTTP').$this->getEnvParam('ROOT_PATH_CLIENT_HTTP_DIR').'common/html/examples/crnrstn_'.$crnrstn_examples_EXAMPLEID.'.html">'.$crnrstn_examples_EXAMPLEID.'</crnrstn_example>';
+					$xml_examplescontent_BODY_str .='<crnrstn_example uri="'.$this->getEnvParam('ROOT_PATH_CLIENT_HTTP').'crnrstn/common/html/examples/crnrstn_'.$crnrstn_examples_EXAMPLEID.'.html">'.$crnrstn_examples_EXAMPLEID.'</crnrstn_example>';
 					//error_log('(2439) :: '.$xml_examplescontent_BODY_str);
 					//die();
 					#echo '<br><br>######################<br>'.$xml_examplescontent_BODY_str.'<br>######################';
@@ -2953,14 +2780,14 @@ class user {
 					#METHODS
 					$crnrstn_method_METHODID_SOURCE = $this->contentOutput_ARRAY[1]['METHODS'][$rownum]['METHODID'];
 					$crnrstn_method_NAME = $this->contentOutput_ARRAY[1]['METHODS'][$rownum]['NAME'];
-					$crnrstn_method_DESCRIPTION = $this->cleanMySQLEscapes($this->contentOutput_ARRAY[1]['METHODS'][$rownum]['DESCRIPTION']);
+					$crnrstn_method_DESCRIPTION = $this->contentOutput_ARRAY[1]['METHODS'][$rownum]['DESCRIPTION'];
 					$crnrstn_method_DEFINITION = $this->contentOutput_ARRAY[1]['METHODS'][$rownum]['DEFINITION'];
 					$crnrstn_method_RETURNED_VALUE = $this->contentOutput_ARRAY[1]['METHODS'][$rownum]['RETURNED_VALUE'];
 					$crnrstn_method_URI = $this->contentOutput_ARRAY[1]['METHODS'][$rownum]['URI'];
 					$crnrstn_method_LANGCODE = $this->contentOutput_ARRAY[1]['METHODS'][$rownum]['LANGCODE'];
 					$crnrstn_method_DATEMODIFIED = $this->contentOutput_ARRAY[1]['METHODS'][$rownum]['DATEMODIFIED'];
 	
-					$xml_classmethodscontent_BODY_str .='<crnrstn_classmethod uri="'.$this->getEnvParam('ROOT_PATH_CLIENT_HTTP').$this->getEnvParam('ROOT_PATH_CLIENT_HTTP_DIR').$crnrstn_method_URI.'">'.$this->XML_sanitize($crnrstn_method_NAME).'</crnrstn_classmethod>';			
+					$xml_classmethodscontent_BODY_str .='<crnrstn_classmethod uri="'.$this->getEnvParam('ROOT_PATH_CLIENT_HTTP').$crnrstn_method_URI.'">'.$this->XML_sanitize($crnrstn_method_NAME).'</crnrstn_classmethod>';			
 				}
 	
 				$xml_method_output_str.= '<crnrstn_techspecscontent>'.$xml_techspecscontent_BODY_str.'</crnrstn_techspecscontent>';
@@ -2983,7 +2810,7 @@ class user {
 			
 			//
 			// LOG ERROR FOR DB ACTIVITY LOGGING
-			$oCRNRSTN_ENV->oLOGGER->captureNotice('CRNRSTN error notification :: XML Content Gen Failure (@ln220) (CLASS)', LOG_NOTICE, $e->getMessage());
+			self::$oLogger->captureNotice('CRNRSTN error notification :: XML Content Gen Failure (@ln220) (CLASS)', LOG_NOTICE, $e->getMessage());
 		}		
 	}
 	
@@ -3049,7 +2876,7 @@ class user {
 	// AUTO-SUGGEST SEARCH RESULTS
 	public function suggestSearchResults($params){
 		$tmp_search_ARRAY = $this->getSuggestions($params);
-		//error_log("user.inc.php (3019) suggestSearchResults() tmp array result = [".sizeof($tmp_search_ARRAY['SEARCH_RESPONSE'])."]");
+		
 		//
 		// BUILD AUTO-SUGGEST SEARCH RESULTS STRING AND RETURN
 		for($i=0;$i<sizeof($tmp_search_ARRAY['SEARCH_RESPONSE']);$i++){
@@ -3067,12 +2894,12 @@ class user {
 				$tmp_str = substr($tmp_search_ARRAY['SEARCH_RESPONSE'][$i]['RESULT_DESCRIPTION'],$tmp_sub_A1,$tmp_sub_A2);
 				//$pos = strpos($tmp_str, '<a');
 				//if($pos!==false){ $tmp_elip = '</a>'.$tmp_elip;}
-				$tmp_results_output .= '<li style="list-style:none;" onMouseOver="s_ovr(this)" onMouseOut="s_out(this)" onClick="loadPage(this, \''.$this->getEnvParam('ROOT_PATH_CLIENT_HTTP').$this->getEnvParam('ROOT_PATH_CLIENT_HTTP_DIR').'search/?s='.urlencode($tmp_search_ARRAY['SEARCH_RESPONSE'][$i]['RESULT_TITLE']).'\');"><table cellpadding="0" cellspacing="0" border="0"><tr><td><img src="'.$this->getEnvParam('ROOT_PATH_CLIENT_HTTP').$this->getEnvParam('ROOT_PATH_CLIENT_HTTP_DIR').'common/imgs/the_R.gif"></td><td>'.$tmp_search_ARRAY['SEARCH_RESPONSE'][$i]['RESULT_TITLE'].' :: '.$tmp_str.$tmp_elip.'</td></tr></table></li>';
+				$tmp_results_output .= '<li style="list-style:none;" onMouseOver="s_ovr(this)" onMouseOut="s_out(this)" onClick="loadPage(this, \'http://127.0.0.1/crnrstn/search/?s='.urlencode($tmp_search_ARRAY['SEARCH_RESPONSE'][$i]['RESULT_TITLE']).'\');"><table cellpadding="0" cellspacing="0" border="0"><tr><td><img src="http://127.0.0.1/crnrstn/common/imgs/the_R.gif"></td><td>'.$tmp_search_ARRAY['SEARCH_RESPONSE'][$i]['RESULT_TITLE'].' :: '.$tmp_str.$tmp_elip.'</td></tr></table></li>';
 			}else{
 				$tmp_str = substr($tmp_search_ARRAY['SEARCH_RESPONSE'][$i]['RESULT_DESCRIPTION'],$tmp_sub_A1);
 				//$pos = strpos($tmp_str, '<a');
 				//if($pos!==false){ $tmp_elip = '</a>'.$tmp_elip;}
-				$tmp_results_output .= '<li style="list-style:none;" onMouseOver="s_ovr(this)" onMouseOut="s_out(this)" onClick="loadPage(this, \''.$this->getEnvParam('ROOT_PATH_CLIENT_HTTP').$this->getEnvParam('ROOT_PATH_CLIENT_HTTP_DIR').'search/?s='.urlencode($tmp_search_ARRAY['SEARCH_RESPONSE'][$i]['RESULT_TITLE']).'\');"><table cellpadding="0" cellspacing="0" border="0"><tr><td><img src="'.$this->getEnvParam('ROOT_PATH_CLIENT_HTTP').$this->getEnvParam('ROOT_PATH_CLIENT_HTTP_DIR').'common/imgs/the_R.gif"></td><td>'.$tmp_search_ARRAY['SEARCH_RESPONSE'][$i]['RESULT_TITLE'].' :: '.$tmp_str.$tmp_elip.'</td></tr></table></li>';
+				$tmp_results_output .= '<li style="list-style:none;" onMouseOver="s_ovr(this)" onMouseOut="s_out(this)" onClick="loadPage(this, \'http://127.0.0.1/crnrstn/search/?s='.urlencode($tmp_search_ARRAY['SEARCH_RESPONSE'][$i]['RESULT_TITLE']).'\');"><table cellpadding="0" cellspacing="0" border="0"><tr><td><img src="http://127.0.0.1/crnrstn/common/imgs/the_R.gif"></td><td>'.$tmp_search_ARRAY['SEARCH_RESPONSE'][$i]['RESULT_TITLE'].' :: '.$tmp_str.$tmp_elip.'</td></tr></table></li>';
 			}
 			//
 			// LIMIT AUTO-SUGGEST TO 10 RESULTS
@@ -3107,7 +2934,7 @@ class user {
 	
 	public function gotSearched(){
 		if(self::$oUserEnvironment->oHTTP_MGR->issetParam($_POST, 't')){
-			header("Location: ".$this->getEnvParam('ROOT_PATH_CLIENT_HTTP').$this->getEnvParam('ROOT_PATH_CLIENT_HTTP_DIR')."search/?s=".self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 't'));		
+			header("Location: ".$this->getEnvParam('ROOT_PATH_CLIENT_HTTP')."crnrstn/search/?s=".self::$oUserEnvironment->oHTTP_MGR->extractData($_POST, 't'));		
 			exit();
 		}
 	}
@@ -3124,67 +2951,10 @@ class user {
 		);
 		
 		self::$methodName = 'isUnUnique';
-		#error_log("(2936)  username being processed is :: ".$un);
-		
-		//
-		// SEND/RETURN WEB SERVICES NEW COMMENT INSERT STATUS REQUEST
-		#return self::$soapManager->returnContent(self::$methodName,self::$params);
-		//error_log("/crnrstn/ user.inc.php (3098) *** ABOUT TO SEND SOAP REQUEST ***");
-		$tmp = self::$soapManager->returnContent(self::$methodName,self::$params);
-		//error_log("/crnrstn/ user.inc.php (3100) value returned is :: ".$tmp);
-		
-		return $tmp;
-	}
-	
-	private function trkDwnld(){
-		//
-		// INITIALIZE PARAMS FOR SOAP OBJECT REQUEST
-		self::$params = array('oDownloadTracker' =>
-			array('HTTP_USER_AGENT' => $_SERVER['HTTP_USER_AGENT'],
-			'REMOTE_ADDR' => $_SERVER['REMOTE_ADDR'],
-			'REQUEST_URI' => $_SERVER['REQUEST_URI']
-			)
-		);
-
-		self::$methodName = 'trkDwnld';
 		
 		//
 		// SEND/RETURN WEB SERVICES NEW COMMENT INSERT STATUS REQUEST
 		return self::$soapManager->returnContent(self::$methodName,self::$params);
-		
-		
-	}
-	
-	public function logActivity($contentType,$contentID){
-//		if(!isset($oLogger)){
-//				$oLogger = new crnrstn_logging();
-//			}
-//		
-//		$oLogger->captureNotice('test of email trigger->logActivity()', LOG_NOTICE, 'lookin good!');
-		
-		
-		//
-		// INITIALIZE PARAMS FOR SOAP OBJECT REQUEST
-		self::$params = array('oNewActivityLog' =>
-			array('ACTIVITY_TYPE' => 'BROWSER_REQUEST', 
-			'ACTIVITY_NAME' => 'PAGEVIEW_'.strtoupper($contentType),
-			'PHPSESSION_ID' => session_id(),
-			'ACTIVITY_CONTENTID' => $contentID,
-			'SCRIPT_NAME' => $_SERVER['SCRIPT_NAME'],
-			'HTTP_USER_AGENT' => $_SERVER['HTTP_USER_AGENT'],
-			'HTTP_REFERER' => $_SERVER['HTTP_REFERER'],
-			'HTTP_HEADERS' => self::$oUserEnvironment->oHTTP_MGR->getHeaders(),
-			'REQUEST_METHOD' => $_SERVER['REQUEST_METHOD'],
-			'REMOTE_ADDR' => $_SERVER['REMOTE_ADDR']
-			)
-		);
-
-		self::$methodName = 'logActivity';
-		
-		//
-		// SEND/RETURN WEB SERVICES NEW COMMENT INSERT STATUS REQUEST
-		return self::$soapManager->returnContent(self::$methodName,self::$params);
-		
 	}
 	
 	private function activateAccount(){
@@ -3205,6 +2975,7 @@ class user {
 		return self::$soapManager->returnContent(self::$methodName,self::$params);
 		
 	}
+	
 	
 	private function creatNewUser(){
 		//
@@ -3227,6 +2998,7 @@ class user {
 	}
 	
 	private function updateUserSettings(){
+		#error_log('(2923) deactivate :: '.self::$frm_input_deactivate);
 		//
 		// INITIALIZE PARAMS FOR SOAP OBJECT REQUEST
 		self::$params = array('oUserSettingsUpdate' =>
@@ -3283,94 +3055,6 @@ class user {
 	
 	}
 	
-	private function pwdResetRequest(){
-		
-		$pos = strrpos(self::$frm_input_pwdreset, "@");
-		if ($pos === false) {
-			//
-			// WE HAVE USERNAME. NO @
-			self::$frm_input_username = self::$frm_input_pwdreset;
-		}else{
-			//
-			// WE HAVE EMAIL
-			self::$frm_input_email = self::$frm_input_pwdreset;
-		}
-		
-		//
-		// INITIALIZE PARAMS FOR SOAP OBJECT REQUEST
-		self::$params = array('oResetPwd' =>
-			array('USERDATA' => self::$frm_input_pwdreset, 
-			'EMAIL' => self::$frm_input_email, 
-			'USERNAME' => self::$frm_input_username)
-		);
-		
-		self::$methodName = 'resetPassword';
-		
-		//
-		// SEND/RETURN WEB SERVICES NEW COMMENT INSERT STATUS REQUEST
-		//error_log("crnrstn user.inc.php (3251) calling SOAP...".self::$methodName);
-		return self::$soapManager->returnContent(self::$methodName,self::$params);
-		
-	}
-	
-	
-	private function pwdResetRequest2(){
-		//
-		// INITIALIZE PARAMS FOR SOAP OBJECT REQUEST
-		self::$params = array('oResetPwd2' =>
-			array('PASSWORD' => self::$frm_input_password, 
-			'PASSWORD_CONFIRM' => self::$frm_input_pwdconfirm, 
-			'MSG_SOURCEID' => self::$frm_input_mid)
-		);
-		
-		self::$methodName = 'resetPassword2';
-		
-		//
-		// SEND/RETURN WEB SERVICES NEW COMMENT INSERT STATUS REQUEST
-		return self::$soapManager->returnContent(self::$methodName,self::$params);
-		
-		
-	}
-	
-	private function toggleLikeLink(){
-		//
-		// INITIALIZE PARAMS FOR SOAP OBJECT REQUEST
-		self::$params = array('oLikeLinkToggle' =>
-			array('NOTEID_SOURCE' => self::$like_param_noteid_source, 
-			'USERNAME' => self::$like_param_un,
-			'ELEMENTID' => self::$tmp_like_param_elementid,
-			'STATE' => self::$like_param_state
-			)
-		);
-		
-		self::$methodName = 'toggleLikeLink';
-		
-		//
-		// SEND/RETURN WEB SERVICES NEW COMMENT INSERT STATUS REQUEST
-		#error_log("/crnrstn/user.inc.php (3132) About to send SOAP request for triggering activation email.");
-		#return "triggeractivationemail=false";
-		return self::$soapManager->returnContent(self::$methodName,self::$params);
-		
-	}
-	
-	private function retriggerActivationEmail(){
-		//
-		// INITIALIZE PARAMS FOR SOAP OBJECT REQUEST
-		self::$params = array('oTriggerActivationEmail' =>
-			array('USERNAME' => self::$frm_input_username, 
-			'EMAIL' => self::$frm_input_email)
-		);
-		
-		self::$methodName = 'triggerActivationEmail';
-		
-		//
-		// SEND/RETURN WEB SERVICES NEW COMMENT INSERT STATUS REQUEST
-		#error_log("/crnrstn/user.inc.php (3132) About to send SOAP request for triggering activation email.");
-		#return "triggeractivationemail=false";
-		return self::$soapManager->returnContent(self::$methodName,self::$params);
-		
-	}
-	
 	private function submitFeedBack(){
 		//
 		// INITIALIZE PARAMS FOR SOAP OBJECT REQUEST
@@ -3382,13 +3066,12 @@ class user {
 			'FB_BUGREPORT' => self::$feedback_FB_BUGREPORT, 
 			'FB_FEATREQUEST' => self::$feedback_FB_FEATREQUEST, 
 			'FB_GENQUESTION' => self::$feedback_FB_GENQUESTION, 
-			'FB_GENCOMMENT' => self::$feedback_FB_GENCOMMENT,
-			'FB_REPORTSPAM' => self::$feedback_FB_REPORTSPAM,
+			'FB_GENCOMMENT' => self::$feedback_FB_GENCOMMENT, 
 			'OPTIN' => self::$feedback_OPTIN, 
 			'USERNAME' => self::$feedback_USERNAME, 
 			'CLASSID_SOURCE' => self::$feedback_CLASSID_SOURCE, 
 			'METHODID_SOURCE' => self::$feedback_METHODID_SOURCE, 
-			'URI' => $this->getEnvParam('ROOT_PATH_CLIENT_HTTP').$this->getEnvParam('ROOT_PATH_CLIENT_HTTP_DIR').self::$feedback_URI, 
+			'URI' => $this->getEnvParam('ROOT_PATH_CLIENT_HTTP').self::$feedback_URI, 
 			'HTTP_USER_AGENT' => self::$feedback_HTTP_USER_AGENT, 
 			'HTTP_USER_AGENT_SEARCH' => $this->search_FillerSanitize(strtolower(self::$feedback_HTTP_USER_AGENT)),
 			'HTTP_REFERER' => self::$feedback_HTTP_REFERER, 
@@ -3396,7 +3079,7 @@ class user {
 			'SERVER_ADDR' => $_SERVER['SERVER_ADDR']
 			)
 		);
-
+		
 		self::$methodName = 'postUserFeedback';
 		
 		//
@@ -3436,7 +3119,7 @@ class user {
 			array('USERNAME' => $this->getUserParam('USERNAME'), 
 			'USERID_SOURCE' => md5($this->getUserParam('USERNAME'))
 		);
-		#error_log("/crnrstn/ user.inc.php (3153) updateUserComment RAW: ".self::$frm_input_comment_raw);
+		
 		//
 		// ELEMENTID IS FOR CLASS, AND WHAT WAS ONCE CLASSID HAS BEEN ASSIGNED NOTEID_SOURCE
 		self::$params = array('oCommentSubmission' =>
@@ -3451,15 +3134,10 @@ class user {
 			'PAGE_ELEMENT_URI' => self::$frm_input_element_uri,
 			'USER_ISUNIQUE' => self::$frm_input_comment_isunique,
 			'NOTE_ELEM_SEARCH' => $this->search_FillerSanitize(self::$frm_input_comment_elem_s),
-			'NOTE_SEARCH' => $this->search_FillerSanitize(self::$frm_input_comment_raw),
 			'NOTE_ELEM_TT' => self::$frm_input_comment_elem_tt,
 			'NOTE_BACKLOG' => self::$frm_input_comment_backLogCode,
-			'PUBLISH_ME' => self::$frm_input_comment_publishme,
 			'STYLED_CHAR_CNT' => strlen(self::$frm_input_comment_styled),
-			'RAW_CHAR_CNT' => strlen(self::$frm_input_comment_raw),
-			'REMOTE_ADDR' => $_SERVER['REMOTE_ADDR'],
-			'SERVER_ADDR' => $_SERVER['SERVER_ADDR'],
-			'HAS_CODE' => self::$frm_input_comment_has_code
+			'RAW_CHAR_CNT' => strlen(self::$frm_input_comment_raw)
 		));
 		
 		self::$methodName = 'updateUserComment';
@@ -3483,8 +3161,6 @@ class user {
 			'EXTERNAL_URI_FORMATTED' => $this->getUserParam('EXTERNAL_URI_FORMATTED')
 		);
 		
-		
-		//error_log("crnrstn user (3421) self::frm_input_comment_isunique->".self::$frm_input_comment_isunique);
 		self::$params = array('oCommentSubmission' =>
 			array('USER' => $tmp_user,
 			'METHODID_SOURCE' => self::$frm_input_mid,
@@ -3497,18 +3173,11 @@ class user {
 			'PAGE_ELEMENT_URI' => self::$frm_input_element_uri,
 			'USER_ISUNIQUE' => self::$frm_input_comment_isunique,
 			'NOTE_ELEM_SEARCH' => $this->search_FillerSanitize(self::$frm_input_comment_elem_s),
-			'NOTE_SEARCH' => $this->search_FillerSanitize(self::$frm_input_comment_raw),
 			'NOTE_ELEM_TT' => self::$frm_input_comment_elem_tt,
 			'NOTE_BACKLOG' => self::$frm_input_comment_backLogCode,
-			'PUBLISH_ME' => self::$frm_input_comment_publishme,
 			'STYLED_CHAR_CNT' => strlen(self::$frm_input_comment_styled),
-			'RAW_CHAR_CNT' => strlen(self::$frm_input_comment_raw),
-			'REMOTE_ADDR' => $_SERVER['REMOTE_ADDR'],
-			'SERVER_ADDR' => $_SERVER['SERVER_ADDR'],
-			'HAS_CODE' => self::$frm_input_comment_has_code
+			'RAW_CHAR_CNT' => strlen(self::$frm_input_comment_raw)
 		));
-		
-		#error_log("/crnrstn/user.inc.php (3271) USER_ISUNIQUE: ".self::$frm_input_comment_isunique);
 		
 		self::$methodName = 'postUserComment';
 		
@@ -3516,53 +3185,6 @@ class user {
 		// SEND/RETURN WEB SERVICES NEW COMMENT INSERT STATUS REQUEST
 		return self::$soapManager->returnContent(self::$methodName,self::$params);
 		
-	}
-	
-	private function postUserCommentreply(){
-		//
-		// INITIALIZE PARAMS FOR SOAP OBJECT REQUEST
-		$tmp_user = 
-			array('USERNAME' => $this->getUserParam('USERNAME'), 
-			'USERID_SOURCE' => md5(strtolower($this->getUserParam('USERNAME'))), 
-			'USERNAME_DISPLAY' => $this->getUserParam('USERNAME_DISPLAY'), 
-			'IMAGE_NAME' => $this->getUserParam('IMAGE_NAME'),
-			'IMAGE_HEIGHT' => $this->getUserParam('IMAGE_HEIGHT'), 
-			'IMAGE_WIDTH' => $this->getUserParam('IMAGE_WIDTH'),
-			'EXTERNAL_URI_FORMATTED' => $this->getUserParam('EXTERNAL_URI_FORMATTED')
-		);
-		
-		self::$params = array('oCommentSubmission' =>
-			array('USER' => $tmp_user,
-			'METHODID_SOURCE' => self::$frm_input_mid,
-			'CLASSID_SOURCE' => self::$frm_input_cid,
-			'REPLYTO_NOTEID' => self::$frm_input_comment_nid_replyto,
-			'SUBJECT' => self::$frm_input_comment_subject,
-			'SUBJECT_SEARCH' => $this->search_FillerSanitize(strtolower(self::$frm_input_comment_subject)),
-			'NOTE_RAW' => self::$frm_input_comment_raw,
-			'NOTE_STYLED' => self::$frm_input_comment_styled,
-			'PAGE_ELEMENT_NAME' => self::$frm_input_element_name,
-			'PAGE_ELEMENT_URI' => self::$frm_input_element_uri,
-			'USER_ISUNIQUE' => self::$frm_input_comment_isunique,
-			'NOTE_ELEM_SEARCH' => $this->search_FillerSanitize(self::$frm_input_comment_elem_s),
-			'NOTE_ELEM_TT' => self::$frm_input_comment_elem_tt,
-			'NOTE_BACKLOG' => self::$frm_input_comment_backLogCode,
-			'PUBLISH_ME' => self::$frm_input_comment_publishme,
-			'STYLED_CHAR_CNT' => strlen(self::$frm_input_comment_styled),
-			'RAW_CHAR_CNT' => strlen(self::$frm_input_comment_raw),
-			'REMOTE_ADDR' => $_SERVER['REMOTE_ADDR'],
-			'SERVER_ADDR' => $_SERVER['SERVER_ADDR'],
-			'HAS_CODE' => self::$frm_input_comment_has_code
-		));
-		
-		#error_log("/crnrstn/user.inc.php (3271) USER_ISUNIQUE: ".self::$frm_input_comment_isunique);
-		
-		self::$methodName = 'postUserCommentReply';
-		
-		//
-		// SEND/RETURN WEB SERVICES NEW COMMENT INSERT STATUS REQUEST
-		return self::$soapManager->returnContent(self::$methodName,self::$params);
-		
-			
 	}
 	
 	public function deleteUserComment($commentID, $elementID){
@@ -3679,17 +3301,11 @@ class user {
 		//
 		// PREPARE MESSAGING
 		switch($statusSource){
-			case 'email_unsub':
-				$tmp_msg_ARRAY[$statusSource] = array('success'=>'Success :: Your email has been unsubscribed from all future system notices. Thanks!','error'=>'Error :: Oops...there was an error processing your email address.<br>Please try again later.');
-			break;
 			case 'post_feedback':
 				$tmp_msg_ARRAY[$statusSource] = array('success'=>'Success :: Your feedback has been received. Thanks!','error'=>'Error :: Oops...there was an error processing your feedback.<br>Please try again later.');
 			break;
 			case 'post_comment':
 				$tmp_msg_ARRAY[$statusSource] = array('success'=>'Success :: Your note on this <span class="user_transaction_bg_xmas_clear">C<span class="the_R">R</span>NRSTN</span> content<br>has been received!','error'=>'Error :: Oops...there was an error processing your note on this content.<br>Please try again later.');
-			break;
-			case 'post_comment_reply':
-				$tmp_msg_ARRAY[$statusSource] = array('success'=>'Success :: Your note in reply to existing <span class="user_transaction_bg_xmas_clear">C<span class="the_R">R</span>NRSTN</span> content<br>has been received!','error'=>'Error :: Oops...there was an error processing your note in reply to this content.<br>Please try again later.');
 			break;
 			case 'edit_comment':
 				$tmp_msg_ARRAY[$statusSource] = array('success'=>'Success :: The update to your note on the selected <span class="user_transaction_bg_xmas_clear">C<span class="the_R">R</span>NRSTN</span> content<br>has been received. Thanks!','error'=>'Error :: Oops...there was an error processing the update to<br>your note on this content.<br>Please try again later.');
@@ -3730,15 +3346,6 @@ class user {
 			case 'activate_linkerr':
 				$tmp_msg_ARRAY[$statusSource] = array('success'=>'','error'=>'Error :: It looks like there is a problem with your activation link.<br>You can click the link below to resend an activation link<br>to the email on record.');
 			break;
-			case 'resend_activation':
-				$tmp_msg_ARRAY[$statusSource] = array('success'=>'Success :: Your account activation email will be sent in a moment.','error'=>'Error :: It looks like there is a problem resending your activation link.');
-			break;
-			case 'pswd_reset':
-				$tmp_msg_ARRAY[$statusSource] = array('success'=>'Success :: An email will be sent to the account on file. Please follow the instructions to successfully reset your account password!','error'=>'Error :: Oops...I was unable to locate an account with that information.<br>No "password reset" email was able to be sent.');
-			break;
-			case 'password_reset':
-				$tmp_msg_ARRAY[$statusSource] = array('success'=>'Success :: Your account password has been updated!','error'=>'Error :: Oops...I was unable to update your password as the link was most<br>likely too old. If you still need to reset your password, please start the process again.');
-			break;
 			case 'xxxxxx':
 				$tmp_msg_ARRAY[$statusSource] = array('success'=>'Success :: Your feedback has been received. Thanks!','error'=>'Error :: Oops...there was an error processing your request.<br>Please try again later.');
 			break;
@@ -3752,49 +3359,6 @@ class user {
 		$this->transStatusMessage_ARRAY[1] = $tmp_msg_ARRAY[$statusSource][$statusCode];
 		
 	}
-	
-	//
-	// METHOD SOURCE :: Stack Overflow ::  https://stackoverflow.com/questions/1846202/php-how-to-generate-a-random-unique-alphanumeric-string
-	// Contributor :: https://stackoverflow.com/users/1698153/scott
-	public function generateNewKey($len=32){
-		$token = "";
-		$codeAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-		$codeAlphabet.= "abcdefghijklmnopqrstuvwxyz";
-		$codeAlphabet.= "0123456789";
-		$max = strlen($codeAlphabet); // edited
-		
-		
-		if(function_exists('random_int')){
-			for ($i=0; $i < $len; $i++){
-				$token .= $codeAlphabet[random_int(0, $max-1)];
-			}
-		}else{
-			for ($i=0; $i < $len; $i++) {
-				$token .= $codeAlphabet[crypto_rand_secure(0, $max-1)];
-			}
-		}
-		
-		return $token;
-		
-	}
-	
-	//
-	// METHOD SOURCE :: Stack Overflow :: https://stackoverflow.com/questions/1846202/php-how-to-generate-a-random-unique-alphanumeric-string
-	// Contributor :: https://stackoverflow.com/users/4895359/yumoji
-	private function crypto_rand_secure($min, $max){
-		$range = $max - $min;
-		if ($range < 1) return $min; // not so random...
-		$log = ceil(log($range, 2));
-		$bytes = (int) ($log / 8) + 1; // length in bytes
-		$bits = (int) $log + 1; // length in bits
-		$filter = (int) (1 << $bits) - 1; // set all lower bits to 1
-		do {
-			$rnd = hexdec(bin2hex(openssl_random_pseudo_bytes($bytes)));
-			$rnd = $rnd & $filter; // discard irrelevant bits
-		} while ($rnd > $range);
-		return $min + $rnd;
-	}		
-	
 	
 	private function clearDblBR($str){
 		return str_replace("<br /><br />", "<br />", $str);

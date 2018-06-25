@@ -180,6 +180,10 @@ class webservice_manager {
 	// BUILD AND RETURN RESPONSE 
 	public function buildResponse($methodName, $params){
 		switch($methodName){
+			case 'logActivity':
+				self::$requestParam = $params;
+				return self::$dataBaseIntegration->svc_logActivity($this, self::$oWebServicesEnvironment);
+			break;
 			case 'getClassContent':
 			case 'getClassContent_PlusNav':
 			case 'getClassComments':
@@ -399,12 +403,12 @@ class webservice_manager {
 				'crnrstn_method_RETURNED_VALUE' => 3, 'crnrstn_method_URI' => 4, 'crnrstn_method_LANGCODE' => 5,
 				'crnrstn_method_DATEMODIFIED' => 6, 'crnrstn_params_PARAMETERID_SOURCE' => 7, 'crnrstn_params_NAME' => 8,
 				'crnrstn_params_ISREQUIRED' => 9, 'crnrstn_params_DESCRIPTION' => 10, 'crnrstn_params_LANGCODE' => 11,
-				'crnrstn_params_ISACTIVE' => 12, 'crnrstn_params_DATEMODIFIED' => 13, 'crnrstn_techspecs_TECHSPECID_SOURCE' => 14,
-				'crnrstn_techspecs_TECHSPEC_CONTENT' => 15, 'crnrstn_techspecs_LANGCODE' => 16, 'crnrstn_techspecs_DATEMODIFIED' => 17,
-				'crnrstn_techspecs_ISACTIVE' => 18, 'crnrstn_examples_EXAMPLEID_SOURCE' => 19, 'crnrstn_examples_TITLE' => 20,
-				'crnrstn_examples_DESCRIPTION' => 21, 'crnrstn_examples_EXAMPLE_FORMATTED' => 22, 
-				'crnrstn_examples_EXAMPLE_RAW' => 23, 'crnrstn_examples_EXAMPLE_ELEM_TT' => 24, 'crnrstn_examples_LANGCODE' => 25,
-				'crnrstn_examples_ISACTIVE' => 26, 'crnrstn_examples_DATEMODIFIED' => 27, 'crnrstn_class_NAME' => 28, 
+				'crnrstn_params_ISACTIVE' => 12, 'crnrstn_params_DATEMODIFIED' => 13,'crnrstn_params_POSITION' => 14, 'crnrstn_techspecs_TECHSPECID_SOURCE' => 15,
+				'crnrstn_techspecs_TECHSPEC_CONTENT' => 16, 'crnrstn_techspecs_LANGCODE' => 17, 'crnrstn_techspecs_DATEMODIFIED' => 18,
+				'crnrstn_techspecs_ISACTIVE' => 19, 'crnrstn_examples_EXAMPLEID_SOURCE' => 20, 'crnrstn_examples_TITLE' => 21,
+				'crnrstn_examples_DESCRIPTION' => 22, 'crnrstn_examples_EXAMPLE_FORMATTED' => 23, 
+				'crnrstn_examples_EXAMPLE_RAW' => 24, 'crnrstn_examples_EXAMPLE_ELEM_TT' => 25, 'crnrstn_examples_LANGCODE' => 26,
+				'crnrstn_examples_ISACTIVE' => 27, 'crnrstn_examples_DATEMODIFIED' => 28, 'crnrstn_class_NAME' => 29, 
 				'nav_crnrstn_class_CLASSID' => 0, 'nav_crnrstn_class_NAME' => 1, 'nav_crnrstn_class_URI' => 2, 
 				'nav_crnrstn_class_LANGCODE' => 3, 'nav_crnrstn_method_METHODID' => 4, 'nav_crnrstn_method_NAME' => 5, 
 				'nav_crnrstn_method_URI' => 6, 'nav_crnrstn_method_ISACTIVE' => 7, 'dyntblname_NOTEID_SOURCE' => 0, 
@@ -418,6 +422,7 @@ class webservice_manager {
 				);
 				
 				self::$requestParam = $params;
+				//error_log("webservice (425) methodName->".$methodName);
 				if($methodName=='getMethodContent'){
 					self::$dbResult_ARRAY = self::$dataBaseIntegration->svc_getMethod($this, self::$oWebServicesEnvironment);
 				}else{
@@ -523,12 +528,14 @@ class webservice_manager {
 										#PARAMETERS
 										$this->crnrstn_params_PARAMETERID_SOURCE = self::$dbResult_ARRAY[$rownum][self::$queryDescript_ARRAY['crnrstn_params_PARAMETERID_SOURCE']];
 										$this->crnrstn_params_NAME = self::$dbResult_ARRAY[$rownum][self::$queryDescript_ARRAY['crnrstn_params_NAME']];
+										$this->crnrstn_params_POSITION = self::$dbResult_ARRAY[$rownum][self::$queryDescript_ARRAY['crnrstn_params_POSITION']];
+										//error_log("services webservice (532) crnrstn_params_POSITION->".$this->crnrstn_params_POSITION);
 										$this->crnrstn_params_ISREQUIRED = self::$dbResult_ARRAY[$rownum][self::$queryDescript_ARRAY['crnrstn_params_ISREQUIRED']];
 										$this->crnrstn_params_DESCRIPTION = self::$dataBaseIntegration->clearDblBR(nl2br(html_entity_decode(self::$dbResult_ARRAY[$rownum][self::$queryDescript_ARRAY['crnrstn_params_DESCRIPTION']])));
 										$this->crnrstn_params_LANGCODE = self::$dbResult_ARRAY[$rownum][self::$queryDescript_ARRAY['crnrstn_params_LANGCODE']];
 										$this->crnrstn_params_DATEMODIFIED = self::$dbResult_ARRAY[$rownum][self::$queryDescript_ARRAY['crnrstn_params_DATEMODIFIED']];
 				
-										array_push($this->soap_resp_PARAMETERS, array('PARAMETERID'=>$this->crnrstn_params_PARAMETERID_SOURCE,'NAME'=>$this->crnrstn_params_NAME,'ISREQUIRED' => $this->crnrstn_params_ISREQUIRED ,'DESCRIPTION'=>$this->crnrstn_params_DESCRIPTION,'LANGCODE'=>$this->crnrstn_params_LANGCODE,'DATEMODIFIED'=>$this->crnrstn_params_DATEMODIFIED));
+										array_push($this->soap_resp_PARAMETERS, array('PARAMETERID'=>$this->crnrstn_params_PARAMETERID_SOURCE,'NAME'=>$this->crnrstn_params_NAME,'POSITION'=>$this->crnrstn_params_POSITION,'ISREQUIRED' => $this->crnrstn_params_ISREQUIRED ,'DESCRIPTION'=>$this->crnrstn_params_DESCRIPTION,'LANGCODE'=>$this->crnrstn_params_LANGCODE,'DATEMODIFIED'=>$this->crnrstn_params_DATEMODIFIED));
 										$this->soap_resp_PARAMETERS_MARKER[sha1(self::$dbResult_ARRAY[$rownum][self::$queryDescript_ARRAY['crnrstn_params_PARAMETERID_SOURCE']])]=1;
 									}
 								
@@ -789,6 +796,7 @@ class webservice_manager {
 			break;
 			case 'isUnUnique':
 				#return self::$dataBaseIntegration->isUnUnique($this, self::$oUserEnvironment);
+				//error_log("running isUnUnique in webservice.inc.php (792)");
 				self::$requestParam = $params;
 				self::$dbResult_ARRAY = self::$dataBaseIntegration->svc_isUnUnique($this, self::$oWebServicesEnvironment);
 				
@@ -1154,6 +1162,7 @@ class webservice_manager {
 				return $this->soapResponse_ARRAY;
 			break;
 			case 'searchResultsSuggest':
+				//error_log("webservice.inc.php (1158) Inside CASE searchResultsSuggest");
 				#return self::$dataBaseIntegration->subSearch($this, self::$oUserEnvironment, 'suggestsearch');
 				unset($this->soapResponse_ARRAY);
 				self::$queryDescript_ARRAY = array(
@@ -1183,6 +1192,7 @@ class webservice_manager {
 				return $this->soapResponse_ARRAY;
 				
 			break;
+			
 		}
 	}
 	
@@ -1208,6 +1218,7 @@ class webservice_manager {
 			case 'SUBJECT':
 			case 'SUBJECT_SEARCH':
 			case 'NOTE_RAW':
+			case 'NOTE_SEARCH':
 			case 'NOTE_STYLED':
 			case 'PAGE_ELEMENT_ID':
 			case 'PAGE_ELEMENT_NAME':
