@@ -139,7 +139,6 @@ class database_integration {
 	
 	private function dbQuery($queryType, $oUserEnvironment, $oUser){
 		try{
-			//error_log('(127) **NOT THIS DB CLASS. USE SERVICES ** queryType sent to user database_integrations class object :: '.$queryType);
 			$ts = date("Y-m-d H:i:s", time()-60*60*6);
 			
 			//
@@ -148,7 +147,7 @@ class database_integration {
 						
 			switch($queryType){
 				case 'email_unsub':
-//
+					//
 					// CHECK THE UNSUB DATABASE TO SEE IF EMAIL EXISTS ALREADY.
 					self::$query = 'SELECT `email_unsub`.`EMAIL`,`email_unsub`.`UNSUB_COUNT` FROM `email_unsub` WHERE 
 					`email_unsub`.`EMAIL`="'.$mysqli->real_escape_string(strtolower(trim($oUser->retrieve_Form_Data('EMAIL')))).'" AND `email_unsub`.`EMAIL_CRC32`="'.crc32(strtolower(trim($oUser->retrieve_Form_Data('EMAIL')))).'" LIMIT 1;';					
@@ -176,18 +175,6 @@ class database_integration {
 							$ROWCNT++;
 						}
 						self::$result->free();
-						
-						/*
-						CREATE TABLE `log_email_unsub` (
-  `UNSUBID` char(70) NOT NULL,
-  `EMAIL` varchar(100) NOT NULL,
-  `EMAIL_CRC32` bigint(11) UNSIGNED NOT NULL,
-  `SESSIONID` char(26) NOT NULL,
-  `IPADDRESS` varchar(30) NOT NULL,
-  `HTTP_USER_AGENT` varchar(500) NOT NULL,
-  `DATECREATED` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-						*/
 						
 						$tmp_unsub_id = $oUser->generateNewKey(70);
 						switch($ROWCNT){
