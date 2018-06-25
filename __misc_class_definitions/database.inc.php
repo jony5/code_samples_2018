@@ -16,9 +16,7 @@ class database_integration {
 	public function __construct() {
 		//
 		// INSTANTIATE LOGGER
-		if(!isset(self::$oLogger)){
-			self::$oLogger = new crnrstn_logging();
-		}
+		self::$oLogger = new crnrstn_logging();
 	}
 	
 	public function svc_searchResultsSuggest($oUser, $oUserEnvironment, $contentType){
