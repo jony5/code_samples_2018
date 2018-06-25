@@ -2,28 +2,35 @@
 /*
 // J5
 // Code is Poetry */
-#  CRNRSTN Suite :: An Open Source PHP Class Library to facilitate the execution of an application's code-base across multiple hosting environments.
-#  Copyright (C) 2018 Jonathan 'J5' Harris.
+#  CRNRSTN Suite :: An Open Source PHP Class Library to facilitate the operation of an application across multiple hosting environments.
+#  Copyright (C) 2012-2018 Evifweb Development
 #  VERSION :: 1.0.0
-#  AUTHOR :: J5
-#  URI :: http://crnrstn.jony5.com/
-#  OVERVIEW :: Once CRNRSTN has been configured for your different hosting environments from localhost through to production, seamlessly 
-#		   	   release a web application from one environment to the next without having to change your code-base to account for 
-#			   environmentally specific parameters. Configure the profiles of each running environment to account for all of your 
-#			   application's environmentally specific parameters; and do this all from one place with the CRNRSTN Suite ::
+#  RELEASE DATE :: July 4, 2018 Happy Independence Day from my dog and I to you...wherever and whenever you are.
+#  AUTHOR :: Jonathan 'J5' Harris, Lead Full Stack Developer
+#  URI :: http://crnrstn.evifweb.com/
+#  OVERVIEW :: CRNRSTN is an open source PHP class library that facilitates the operation of an application within multiple server 
+#			   environments (e.g. localhost, stage, preprod, and production). With this tool, data and functionality with 
+#			   characteristics that inherently create distinctions from one environment to the next...such as IP address restrictions, 
+#			   error logging profiles, and database authentication credentials...can all be managed through one framework for an entire 
+#			   application. Once CRNRSTN has been configured for your different hosting environments, seamlessly release a web 
+#			   application from one environment to the next without having to change your code-base to account for environmentally 
+#			   specific parameters; and manage this all from one place within the CRNRSTN Suite ::
+
 #  LICENSE :: This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public 
-#			  License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+#			  License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any 
+#			  later version.
+#
+#  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty 
+#  of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License along with this program. This license can also be downloaded from
+#  http://crnrstn.evifweb.com/license.txt.  If not, see <http://www.gnu.org/licenses/>
 
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-
-#  You should have received a copy of the GNU General Public License
-#  along with this program. Thandle_env_ARRAYhis license can also be downloaded from
-#  my web site at (http://crnrstn.jony5.com/license.txt).  
-#  If not, see <http://www.gnu.org/licenses/>
-
+/*
+// CLASS :: crnrstn_mysqli_conn
+// AUTHOR :: Jonathan 'J5' Harris <jharris@evifweb.com>
+// VERSION :: 1.0.0
+*/
 class crnrstn_mysqli_conn {
 	private static $db_host;				// = $host;
 	private static $db_db;					// = $dbname;
@@ -39,12 +46,10 @@ class crnrstn_mysqli_conn {
 	private static $oLogger;
 
 	public function __construct($host, $un, $pwd, $db, $port=NULL) {
-		#error_log("crnrstn.mysqli.inc.php (41) DB CONN _construct. host: ".$host.", un: ".$un.", pwd: ".$pwd.", db: ".$db);
+		
 		// 
 		// INSTANTIATE LOGGER
-		if(!isset(self::$oLogger)){
-			self::$oLogger = new crnrstn_logging();
-		}
+		self::$oLogger = new crnrstn_logging();
 		
 		self::$db_host 		= $host;
 		self::$db_db	 	= $db;
@@ -54,33 +59,34 @@ class crnrstn_mysqli_conn {
 	}
 	
 	public function connReturn(){
-		#error_log("crnrstn.mysqli.inc.php (54) *******Running connReturn****** db_un:".self::$db_un." -- db_host:".self::$db_host." -- db_db:".self::$db_db);
+		
 		//
 		// ESTABLISH AND RETURN MYSQLI CONNECTION
 		try{
 			if(self::$db_port!=''){
-				//print_r( "new mysqli(".self::$db_host.", ".self::$db_un.", ".self::$db_pwd.", ".self::$db_db.", ".self::$db_port.")");
 				$mysqli = new mysqli(self::$db_host, self::$db_un, self::$db_pwd, self::$db_db, self::$db_port);
 			}else{
-				//print_r( "new mysqli(".self::$db_host.", ".self::$db_un.", ".self::$db_pwd.", ".self::$db_db.")");	
 				$mysqli = new mysqli(self::$db_host, self::$db_un, self::$db_pwd, self::$db_db);
 			}
 			
-			if ($mysqli->connect_errno) {
+			if ($mysqli->connect_error) {
+				
 				//
 				// HOOOSTON...VE HAF PROBLEM!
 				throw new Exception('CRNRSTN mysqli connection error :: failed to connect to MySQL: (' . $mysqli->connect_errno . ') ' . $mysqli->connect_error.' on server '.$_SERVER['SERVER_NAME'].' ('.$_SERVER['SERVER_ADDR'].').');
 			}
 			
+			
 			return $mysqli;
 			
 		} catch( Exception $e ) {
+			
 			//
 			// SEND THIS THROUGH THE LOGGER OBJECT
 			self::$oLogger->captureNotice('mysqli_conn->connReturn()', LOG_ERR, $e->getMessage());
 			
 			//
-			// RETURN NOTHING
+			// RETURN FALSE
 			return false;
 		}
 	}
@@ -91,6 +97,11 @@ class crnrstn_mysqli_conn {
 }
 
 
+/*
+// CLASS :: crnrstn_mysqli_conn_manager
+// AUTHOR :: Jonathan 'J5' Harris <jharris@evifweb.com>
+// VERSION :: 1.0.0
+*/
 class crnrstn_mysqli_conn_manager {
 	
 	public $crnrstnConfigSerial;
@@ -113,21 +124,19 @@ class crnrstn_mysqli_conn_manager {
 	public $oSESSION_MGR;
 		
 	public function __construct($configSerial) {
+		
 		// 
 		// INSTANTIATE LOGGER
 		if(!isset(self::$oLogger)){
 			self::$oLogger = new crnrstn_logging();
 		}
 		
-		#error_log("crnrstn.mysqli.inc.php (120) configSerial [".$configSerial."]");
 		$this->crnrstnConfigSerial = $configSerial;
 		
 		$this->oSESSION_MGR = new crnrstn_session_manager();
 	}
 
 	public function addConnection($env, $host, $un, $pwd, $db, $port=NULL){
-		#error_log("crnrstn.mysqli.inc.php (127) Adding DB connection SERIAL [".$this->crnrstnConfigSerial."] for env: ".$env." with host: ".$host." and un: ".$un);
-		#echo "adding database connection for env: ".$env."<br>";
 		
 		//
 		// STORE CONNECTION CONFIG PARAMETERS IN MULTI-DIMENSIONAL ARRAY
@@ -142,17 +151,13 @@ class crnrstn_mysqli_conn_manager {
 	private function prepDatabaseConfig($host=NULL, $db=NULL, $un=NULL, $port=NULL, $pwd=NULL){
 		
 		//
-		// IF HASHED INPUT PARAMETERS MATCH WHAT HAS BEEN STORED IN SESSION, PREPARATION IS COMPLETE
-		// throw new Exception($host.'::'.$db.'::'.$un.'::'.$port.'::'.$pwd);
-
+		// IF HASHED INPUT PARAMETERS MATCH WHAT HAS BEEN STORED IN SESSION, PREPARATION IS COMPLETE.
 		if($this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_CNFG') == md5($host.'::'.$db.'::'.$un.'::'.$port.'::'.$pwd)){
-			#error_log("crnrstn.mysqli.inc.php (148) Successfully pulled _CRNRSTN_DB_CNFG from oSESSION_MGR so NOT going to run rest of prepDatabaseConfig....");
 			return true;
 		}
 		
 		//
-		// XXXXX->returnConnection();
-		#error_log("crnrstn.mysqli.inc.php (122) About to check for host being Null: ".$host);
+		// $oCRNRSTN_ENV->oMYSQLI_CONN_MGR->returnConnection();
 		if($host==NULL){
 
 			//
@@ -160,20 +165,16 @@ class crnrstn_mysqli_conn_manager {
 			// *CRNRSTN ENVIRONMENTAL DETECTION + VALUES FROM THE CONFIGURATION FILE		
 			if(!($this->oSESSION_MGR->issetSessionParam('_CRNRSTN_DB_HOST'))){
 				
-				#error_log("crnrstn.mysqli.inc.php (161) appEnvKey :: [".self::$appEnvKey."]");
 				foreach (self::$db_host[crc32($this->crnrstnConfigSerial)][self::$appEnvKey] as $tmp_db_host=>$tmp_host_array) {
 					foreach($tmp_host_array as $tmp_db_db=>$tmp_db_array){
 						foreach($tmp_db_array as $tmp_un=>$oMYSQLI){
-							#error_log("crnrstn.mysqli.inc.php (163) tmp_db_db :: ".$tmp_db_db);
+
 							//
 							// INITIALIZE/REFRESH SESSION PARAMETERS
 							$this->oSESSION_MGR->setSessionParam('_CRNRSTN_DB_ENV', self::$appEnvKey);
 							$this->oSESSION_MGR->setSessionParam('_CRNRSTN_DB_HOST', $tmp_db_host);
 							$this->oSESSION_MGR->setSessionParam('_CRNRSTN_DB_DB', $tmp_db_db);
 							$this->oSESSION_MGR->setSessionParam('_CRNRSTN_DB_UN', $tmp_un);
-							
-							
-							#error_log("mysqli (175) --> [".self::$db_db[crc32($this->crnrstnConfigSerial)][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_ENV')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_HOST')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_DB')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_UN')]);
 							
 							//
 							// INITIALIZE/REFRESH OPTIMIZATION HASH (IN SESSION) TO STREAMLINE PREPARATION OF DATABASE CONNECTION
@@ -185,6 +186,7 @@ class crnrstn_mysqli_conn_manager {
 				}
 				
 			}else{
+				
 				//
 				// INITIALIZE/REFRESH OPTIMIZATION HASH (IN SESSION) TO STREAMLINE PREPARATION OF DATABASE CONNECTION
 				$this->oSESSION_MGR->setSessionParam('_CRNRSTN_DB_CNFG', md5($host.'::'.$db.'::'.$un.'::'.$port.'::'.$pwd));
@@ -195,8 +197,9 @@ class crnrstn_mysqli_conn_manager {
 			}
 			
 		}else{
+			
 			//
-			// XXXXX->returnConnection('host');
+			//  $oCRNRSTN_ENV->oMYSQLI_CONN_MGR->returnConnection('host');
 			if($db==NULL){
 				if(!($this->oSESSION_MGR->issetSessionParam('_CRNRSTN_DB_DB'))){
 					foreach (self::$db_host[self::$appEnvKey] as $tmp_db_host=>$tmp_host_array) {
@@ -221,9 +224,11 @@ class crnrstn_mysqli_conn_manager {
 						}
 					}
 				}else{
+					
 					//
 					// CHECK FOR CHANGES FROM SESSION IN HOST::DB
 					if($this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_HOST')==crc32($host)){
+						
 						//
 						// INITIALIZE/REFRESH OPTIMIZATION HASH (IN SESSION) TO STREAMLINE PREPARATION OF DATABASE CONNECTION
 						$this->oSESSION_MGR->setSessionParam('_CRNRSTN_DB_CNFG', md5($host.'::'.$db.'::'.$un.'::'.$port.'::'.$pwd));
@@ -233,6 +238,7 @@ class crnrstn_mysqli_conn_manager {
 						return true;
 						
 					}else{
+						
 						//
 						// SOMETHING CHANGED. SESSION NO LONGER MATCHES returnConnection() INPUT PARAMS.
 						return false;
@@ -242,14 +248,16 @@ class crnrstn_mysqli_conn_manager {
 			}else{
 				
 				if($un==NULL){
+					
 					//
-					// XXXXX->returnConnection('host', 'database');
+					//  $oCRNRSTN_ENV->oMYSQLI_CONN_MGR->returnConnection('host', 'database');
 					if(!($this->oSESSION_MGR->issetSessionParam('_CRNRSTN_DB_UN'))){
 						foreach (self::$db_host[self::$appEnvKey] as $tmp_db_host=>$tmp_host_array) {
 							if($tmp_db_host==crc32($host)){
 								foreach($tmp_host_array as $tmp_db_db=>$tmp_db_array){
 									if($tmp_db_db==crc32($db)){
 										foreach($tmp_db_array as $tmp_un=>$oMYSQLI){
+											
 											//	
 											// INITIALIZE/REFRESH SESSION PARAMETERS
 											$this->oSESSION_MGR->setSessionParam('_CRNRSTN_DB_ENV', self::$appEnvKey);
@@ -268,9 +276,11 @@ class crnrstn_mysqli_conn_manager {
 							}
 						}
 					}else{
+						
 						//
 						// CHECK FOR CHANGES FROM SESSION IN HOST::DB
 						if($this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_HOST')==crc32($host) && $this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_DB')==crc32($db)){
+							
 							//
 							// INITIALIZE/REFRESH OPTIMIZATION HASH (IN SESSION) TO STREAMLINE PREPARATION OF DATABASE CONNECTION
 							$this->oSESSION_MGR->setSessionParam('_CRNRSTN_DB_CNFG', md5($host.'::'.$db.'::'.$un.'::'.$port.'::'.$pwd));
@@ -280,6 +290,7 @@ class crnrstn_mysqli_conn_manager {
 							return true;
 							
 						}else{
+							
 							//
 							// SOMETHING CHANGED. SESSION NO LONGER MATCHES returnConnection() INPUT PARAMS.
 							return false;
@@ -287,27 +298,17 @@ class crnrstn_mysqli_conn_manager {
 					}
 					
 				}else{
-					#error_log("ABOUT TO CHECK FOR port & pwd BEING NULL *******************".$port."::".$pwd);
 					if($port==NULL && $pwd==NULL){
+						
 						//
-						// CRNRSTN ENVIRONMENTAL DETECTION + METHOD PARAMETERS + VALUES FROM THE CONFIGURATION FILE
-						// XXXXX->returnConnection('host', 'database', 'user');
+						//  $oCRNRSTN_ENV->oMYSQLI_CONN_MGR->returnConnection('host', 'database', 'user');
 						if(crc32($un)!=$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_UN')){
-							#error_log("crnrstn.mysqli.inc.php (258) db_host appEnvKey is ".self::$appEnvKey);
-							#echo "size of host :".sizeof(self::$db_host)."<br>";
 							foreach (self::$db_host[self::$appEnvKey] as $tmp_db_host=>$tmp_host_array) {
-								#echo "**iterating through db_host**".$tmp_db_host."<br>";
 								if($tmp_db_host==crc32($host)){
-									#echo "ONCE MORE DEEPER<br>";
 									foreach($tmp_host_array as $tmp_db_db=>$tmp_db_array){
-										#echo "AND DEEPER STILL...<BR>";
-										#echo "COMPARE TMP DB:".$tmp_db_db." with checksum ".crc32($db)."<br>";
 										if($tmp_db_db==crc32($db)){
 											foreach($tmp_db_array as $tmp_un=>$oMYSQLI){
-												#echo "FOR EACH TMP_DB_ARRAY<br>";
-												#echo "COMPARE TMP UN:".$tmp_un." with checksum ".crc32($un)."<br>";
 												if($tmp_un==crc32($un)){
-													#echo "MADE IT TO THE HEART<br>";
 												
 													//
 													// INITIALIZE/REFRESH SESSION PARAMETERS
@@ -328,9 +329,11 @@ class crnrstn_mysqli_conn_manager {
 								}
 							}
 						}else{
+							
 							//
 							// CHECK FOR CHANGES FROM SESSION IN HOST::DB
 							if($this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_HOST')==crc32($host) && $this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_DB')==crc32($db)){
+								
 								//
 								// INITIALIZE/REFRESH OPTIMIZATION HASH (IN SESSION) TO STREAMLINE PREPARATION OF DATABASE CONNECTION
 								$this->oSESSION_MGR->setSessionParam('_CRNRSTN_DB_CNFG', md5($host.'::'.$db.'::'.$un.'::'.$port.'::'.$pwd));
@@ -340,6 +343,7 @@ class crnrstn_mysqli_conn_manager {
 								return true;
 								
 							}else{
+								
 								//
 								// SOMETHING CHANGED. SESSION NO LONGER MATCHES returnConnection() INPUT PARAMS.
 								return false;
@@ -348,9 +352,10 @@ class crnrstn_mysqli_conn_manager {
 						
 					}else{
 						if($pwd==NULL && $port!=NULL){
+							
 							//
 							// CRNRSTN ENVIRONMENTAL DETECTION + METHOD PARAMETERS + VALUES FROM THE CONFIGURATION FILE
-							// XXXXX->returnConnection('host', 'database', 'user', 'port');
+							// $oCRNRSTN_ENV->oMYSQLI_CONN_MGR->returnConnection('host', 'database', 'user', 'port');
 							if(crc32($un)!=$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_UN')){
 								foreach (self::$db_host[self::$appEnvKey] as $tmp_db_host=>$tmp_host_array) {
 									if($tmp_db_host==crc32($host)){
@@ -358,7 +363,7 @@ class crnrstn_mysqli_conn_manager {
 											if($tmp_db_db==crc32($db)){
 												foreach($tmp_db_array as $tmp_un=>$oMYSQLI){
 													if($tmp_un==crc32($un)){
-													
+														
 														//
 														// INITIALIZE/REFRESH SESSION PARAMETERS
 														$this->oSESSION_MGR->setSessionParam('_CRNRSTN_DB_ENV', self::$appEnvKey);
@@ -384,7 +389,7 @@ class crnrstn_mysqli_conn_manager {
 									}
 								}
 							}else{
-							
+								
 								//
 								// INITIALIZE/REFRESH OPTIMIZATION HASH (IN SESSION) TO STREAMLINE PREPARATION OF DATABASE CONNECTION
 								$this->oSESSION_MGR->setSessionParam('_CRNRSTN_DB_CNFG', md5($host.'::'.$db.'::'.$un.'::'.$port.'::'.$pwd));
@@ -395,9 +400,9 @@ class crnrstn_mysqli_conn_manager {
 							}								
 							
 						}else{
+							
 							//
-							// XXXXX->returnConnection('host', 'database', 'user', 'port', 'pwd');
-							#error_log("********STORING DB DATA IN SESSION***************");
+							// $oCRNRSTN_ENV->oMYSQLI_CONN_MGR->returnConnection('host', 'database', 'user', 'port', 'pwd');
 							$this->oSESSION_MGR->setSessionParam('_CRNRSTN_DB_ENV', self::$appEnvKey);
 							$this->oSESSION_MGR->setSessionParam('_CRNRSTN_DB_HOST', crc32($host));
 							$this->oSESSION_MGR->setSessionParam('_CRNRSTN_DB_DB', crc32($db));
@@ -430,23 +435,20 @@ class crnrstn_mysqli_conn_manager {
 	}
 	
 	public function returnConnection($host=NULL, $db=NULL, $un=NULL, $port=NULL, $pwd=NULL){
-		#$mysqli = $oENV::$oMYSQLI_CONN_MGR->returnConnection('host', 'database', 'user', 'port', 'password');
-		#$mysqli = $oENV::$oMYSQLI_CONN_MGR->returnConnection('host', 'database', 'user', 'port');
-		#$mysqli = $oENV::$oMYSQLI_CONN_MGR->returnConnection('host', 'database', 'user');
-		#$mysqli = $oENV::$oMYSQLI_CONN_MGR->returnConnection('host', 'database');
-		#$mysqli = $oENV::$oMYSQLI_CONN_MGR->returnConnection('host');
-		#$mysqli = $oENV::$oMYSQLI_CONN_MGR->returnConnection();
+		#$mysqli = $oCRNRSTN_ENV->oMYSQLI_CONN_MGR->returnConnection('host', 'database', 'user', 'port', 'password');
+		#$mysqli = $oCRNRSTN_ENV->oMYSQLI_CONN_MGR->returnConnection('host', 'database', 'user', 'port');
+		#$mysqli = $oCRNRSTN_ENV->oMYSQLI_CONN_MGR->returnConnection('host', 'database', 'user');
+		#$mysqli = $oCRNRSTN_ENV->oMYSQLI_CONN_MGR->returnConnection('host', 'database');
+		#$mysqli = $oCRNRSTN_ENV->oMYSQLI_CONN_MGR->returnConnection('host');
+		#$mysqli = $oCRNRSTN_ENV->oMYSQLI_CONN_MGR->returnConnection();
 		
 		//
 		// ESTABLISH DATABASE CONNECTIVITY PARAMETERS
 		try{
-			#echo "<br>DB PARAMETERS ARE: ".$host.", ".$db.", ".$un.", ".$port.", ".$pwd."<br>";
 			if($this->prepDatabaseConfig($host, $db, $un, $port, $pwd)){
-				#error_log("crnrstn.mysqli.inc.php (444) prepDatabaseConfig evaluated to TRUE : ".$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_ENV')." [".$this->crnrstnConfigSerial."]");
 				if($port!=''){
 					self::$cache_db_port = (int) $port;
 				}else{
-					#error_log("mysqli (448) --> [".self::$db_port[crc32($this->crnrstnConfigSerial)][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_ENV')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_HOST')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_DB')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_UN')]);
 					self::$cache_db_port = self::$db_port[crc32($this->crnrstnConfigSerial)][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_ENV')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_HOST')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_DB')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_UN')];
 				}
 				
@@ -455,29 +457,29 @@ class crnrstn_mysqli_conn_manager {
 				}else{
 					self::$cache_db_pwd = self::$db_pwd[crc32($this->crnrstnConfigSerial)][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_ENV')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_HOST')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_DB')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_UN')];
 				}
-		
+
 				//
 				// INSTANTIATE MYSQLI CONNECTION CLASS
-				#$oMYSQLI = new mysqli_conn(self::$cache_db_host, self::$cache_db_un, self::$cache_db_pwd, self::$cache_db_db, self::$cache_db_port);
-				#error_log("crnrstn.mysqli.inc.php (461) returnConnection() crnrstnConfigSerial -> [".$this->crnrstnConfigSerial."]");
 				$oMYSQLI = new crnrstn_mysqli_conn(self::$db_host[crc32($this->crnrstnConfigSerial)][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_ENV')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_HOST')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_DB')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_UN')],
 											self::$db_un[crc32($this->crnrstnConfigSerial)][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_ENV')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_HOST')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_DB')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_UN')],
 											self::$cache_db_pwd,
 											self::$db_db[crc32($this->crnrstnConfigSerial)][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_ENV')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_HOST')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_DB')][$this->oSESSION_MGR->getSessionParam('_CRNRSTN_DB_UN')],
 											self::$cache_db_port);
-			
+				
 				//
 				// ESTABLISH A CONNECTION AND RETURN CONNECTION HANDLE
 				$mysqli = $oMYSQLI->connReturn();
 				
 				return $mysqli;
 			}else{
+				
 				//
 				// HOOOSTON...VE HAF PROBLEM!
 				throw new Exception('CRNRSTN mysqli connection manager error :: failed to prepDatabaseConfig() for MySQL on server '.$_SERVER['SERVER_NAME'].' ('.$_SERVER['SERVER_ADDR'].').');
 			}
 			
 		} catch( Exception $e ) {
+			
 			//
 			// SEND THIS THROUGH THE LOGGER OBJECT
 			self::$oLogger->captureNotice('mysqli_conn_manager->returnConnection()', LOG_ERR, $e->getMessage());
@@ -497,6 +499,7 @@ class crnrstn_mysqli_conn_manager {
 						if($result = $mysqli->query($query, MYSQLI_USE_RESULT)){
 							return $result;
 						}else{
+							
 							//
 							// HOOOSTON...VE HAF PROBLEM!
 							throw new Exception('CRNRSTN mysqli query error :: failed to execute query(). '.$mysqli->error);
@@ -506,6 +509,7 @@ class crnrstn_mysqli_conn_manager {
 						if($result = $mysqli->query($query, MYSQLI_STORE_RESULT)){
 							return $result;
 						}else{
+							
 							//
 							// HOOOSTON...VE HAF PROBLEM!
 							throw new Exception('CRNRSTN mysqli query error :: failed to execute query(). '.$mysqli->error);
@@ -515,6 +519,7 @@ class crnrstn_mysqli_conn_manager {
 						if($result = $mysqli->query($query, MYSQLI_ASYNC)){
 							return $result;
 						}else{
+							
 							//
 							// HOOOSTON...VE HAF PROBLEM!
 							throw new Exception('CRNRSTN mysqli query error :: failed to execute query(). '.$mysqli->error);
@@ -526,13 +531,15 @@ class crnrstn_mysqli_conn_manager {
 				if($result = $mysqli->query($query)){
 					return $result;
 				}else{
+					
 					//
 					// HOOOSTON...VE HAF PROBLEM!
-					throw new Exception('CRNRSTN mysqli query error :: failed to execute query(). '.$query);
+					throw new Exception('CRNRSTN mysqli query error :: failed to execute query(). '.$mysqli->error);
 				}
 			}
 			
 		}catch( Exception $e ) {
+			
 			//
 			// SEND THIS THROUGH THE LOGGER OBJECT
 			self::$oLogger->captureNotice('mysqli_conn_manager->processQuery()', LOG_ERR, $e->getMessage());
@@ -541,70 +548,48 @@ class crnrstn_mysqli_conn_manager {
 			// RETURN NOTHING
 			return false;
 		}
-	
 	}
 	
 	public function processMultiQuery($mysqli, $query){
 		try{
 			if($mysqli){
-			if ($mysqli->multi_query($query)) {
-				#error_log("crnrstn.mysqli.inc.php (540) processMultiQuery() query-> ".$query);
-				if ($result = $mysqli->store_result()) {
-					#error_log("crnrstn.mysqli.inc.php (542) processMultiQuery() WE HAVE A RESULT TO RETURN...");
-					return $result;
-				
-				}else{
-					#error_log("crnrstn.mysqli.inc.php (546) processMultiQuery() WE HAVE ERROR RETURNING RESULT!");
-					throw new Exception('Unable to process multi-query (result).');
+				if ($mysqli->multi_query($query)) {
 					
+					//
+					// JUST RETURN MYSQLI CONNECTION OBJECT TO HAVE RESULT EXTRACTED LATER.
+					return $mysqli;
+				}else{
+					
+					//
+					// HOOOSTON...VE HAF PROBLEM!
+					throw new Exception('Unable to process multi-query. ['.$mysqli->error.']');
 				}
-			
 			}else{
-				//
-				// HOOOSTON...VE HAF PROBLEM!
-				#error_log("crnrstn.mysqli.inc.php (553) processMultiQuery() WE HAVE ERROR RUNNING MULTI_QUERY!");
-				throw new Exception('Unable to process multi-query. ['.$mysqli->error.']');
-			}
-			}else{
-				#error_log("crnrstn.mysqli.inc.php (559) processMultiQuery() WE HAVE ERROR Unable to process multi-query due to provided mysqli object/BOOL.");
-				throw new Exception('Unable to process multi-query due to provided mysqli object/BOOL.');
+				throw new Exception('Unable to process multi-query due to provided mysqli object is false.');
 			}
 			
 		} catch( Exception $e ) {
+			
 			//
 			// SEND THIS THROUGH THE LOGGER OBJECT
 			self::$oLogger->captureNotice('mysqli_conn_manager->processMultiQuery()', LOG_ERR, $e->getMessage());
 			
 			//
 			// RETURN NOTHING
-			return false;
+			return $mysqli;
 		}
 	}
 		
-	public function setEnvironment($oENV){
+	public function setEnvironment($oCRNRSTN_ENV){
+		
 		//
 		// SET ENVIRONMENT FOR DATABASE CONNECTION MANAGEMENT
-		self::$appEnvKey = $oENV->oSESSION_MGR->getSessionKey();
-		#error_log("crnrstn.mysqli.inc.php (587) ************* setEnvironment() ****************** appEnvKey: ".self::$appEnvKey);
-		//
-		// INSTANTIATE SESSION MANAGER 
-		//if(!isset($this->oSESSION_MGR)){
-		//	$this->oSESSION_MGR = new crnrstn_session_manager($oENV);
-		//}
-		
-		#echo '(516) SESSION_MGR->setSessionKey passing in appEnvKey of '.self::$appEnvKey;
-		#$this->oSESSION_MGR->setSessionParam('_CRNRSTN_ENV_KEY', self::$appEnvKey);
-#		error_log("crnrstn.mysqli.inc.php (537) **ALERT** Setting session key to value of: ".self::$appEnvKey);
-#		$this->oSESSION_MGR->setSessionKey($this->oSESSION_MGR, self::$appEnvKey);
-		
+		self::$appEnvKey = $oCRNRSTN_ENV->oSESSION_MGR->getSessionKey();
 	}
 
 	public function __destruct() {
 		
 	}
 }
-
-
-
 
 ?>
