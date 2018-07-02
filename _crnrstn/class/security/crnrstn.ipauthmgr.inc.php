@@ -1215,7 +1215,7 @@ class crnrstn_ip_auth_manager {
 		}
 		}
 		
-		if(!isset($tnp_endState)){ $tmp_endState = 0; }
+		if(!isset($tmp_endState)){ $tmp_endState = 0; }
 		
 		//
 		// IF EXCLUSIVES EXIST FOR PROCESSING, DEFAULT RESPONSE IS FALSE (tmp_endState initialized with 1)
